@@ -1,0 +1,28 @@
+{
+  "name": "@di/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "setup:source": "tsx src/cli/setup-source.ts",
+    "login": "tsx src/cli/login.ts",
+    "extract-one": "tsx src/cli/extract-one.ts",
+    "inspect-login": "tsx src/cli/inspect-login.ts",
+    "typecheck": "tsc --noEmit",
+    "worker": "tsx src/cli/worker.ts",
+    "session:export": "tsx src/cli/session-transfer.ts export",
+    "session:import": "tsx src/cli/session-transfer.ts import"
+  },
+  "dependencies": {
+    "@di/core": "*",
+    "@di/db": "*",
+    "cheerio": "^1.2.0",
+    "dotenv": "^17.2.3",
+    "playwright": "1.64.1",
+    "tsx": "^4.20.6"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "typescript": "^5"
+  }
+}

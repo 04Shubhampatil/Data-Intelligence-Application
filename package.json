@@ -1,0 +1,32 @@
+{
+  "name": "data-intelligence",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w web",
+    "build": "npm run db:generate && npm run build -w web",
+    "start": "npm run start -w web",
+    "lint": "npm run lint -w web",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "db:generate": "npm run generate -w @di/db",
+    "db:migrate": "npm run migrate -w @di/db",
+    "db:deploy": "npm run deploy -w @di/db",
+    "db:seed": "npm run seed -w @di/db",
+    "db:studio": "npm run studio -w @di/db",
+    "source:setup": "npm run setup:source -w @di/worker",
+    "source:login": "npm run login -w @di/worker",
+    "source:extract-one": "tsx apps/worker/src/cli/extract-one.ts",
+    "source:sync": "tsx apps/worker/src/cli/sync.ts",
+    "source:worker": "tsx apps/worker/src/cli/worker.ts",
+    "source:session:export": "npm run session:export -w @di/worker --",
+    "source:session:import": "npm run session:import -w @di/worker --"
+  },
+  "devDependencies": {
+    "vitest": "^4.0.5"
+  }
+}

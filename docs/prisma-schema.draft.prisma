@@ -1,0 +1,246 @@
+// DRAFT — Phase 1. Not yet migrated. Portable between PostgreSQL and MySQL.
+// Only allow-listed (approved) candidate fields appear here.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql" // or "postgresql" — pending decision
+  url      = env("DATABASE_URL")
+}
+
+// ───────────── Auth / RBAC ─────────────
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String?
+  passwordHash String
+  isActive     Boolean   @default(true)
+  roleId       String
+  role         Role      @relation(fields: [roleId], references: [id])
+  // optional row-level scope (empty = all)
+  scopeDistricts District[] @relation("UserDistrictScope")
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  auditLogs    AuditLog[]
+  syncJobs     SyncJob[]
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique // SUPER_ADMIN, ADMIN, VIEWER
+  permissions Json     // ["candidates:read","sync:run","reports:export",...]
+  users       User[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ───────────── Source ─────────────
+
+model SourceConnection {
+  id              String    @id @default(cuid())
+  name            String
+  adapterKey      String    // "mahahrd"
+  baseUrl         String
+  username        String
+  encryptedSecret String    @db.Text // AES-256-GCM, decrypted only in worker
+  isActive        Boolean   @default(true)
+  rateLimitMs     Int       @default(2000)
+  lastSyncedAt    DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  candidates      Candidate[]
+  syncJobs        SyncJob[]
+  fieldPolicies   FieldPolicy[]
+}
+
+model FieldPolicy {
+  id                 String           @id @default(cuid())
+  sourceConnectionId String
+  sourceConnection   SourceConnection @relation(fields: [sourceConnectionId], references: [id])
+  fieldKey           String           // "fullName", "mobile", ...
+  allowed            Boolean          @default(false)
+  maskInUi           Boolean          @default(false)
+  allowInAi          Boolean          @default(false)
+  updatedAt          DateTime         @updatedAt
+
+  @@unique([sourceConnectionId, fieldKey])
+}
+
+// ───────────── Lookups (from source filter options) ─────────────
+
+model District {
+  id         String      @id @default(cuid())
+  name       String      @unique
+  candidates Candidate[]
+  scopedUsers User[]     @relation("UserDistrictScope")
+}
+
+model DepartmentHead { // "Department/Project" e.g. PRADHAN MANTRI AWAS YOJANA
+  id          String       @id @default(cuid())
+  name        String       @unique
+  subProjects SubProject[]
+  candidates  Candidate[]
+}
+
+model SubProject {
+  id               String         @id @default(cuid())
+  name             String
+  departmentHeadId String
+  departmentHead   DepartmentHead @relation(fields: [departmentHeadId], references: [id])
+  candidates       Candidate[]
+
+  @@unique([departmentHeadId, name])
+}
+
+model Designation {
+  id         String      @id @default(cuid())
+  name       String      @unique
+  candidates Candidate[]
+}
+
+// ───────────── Candidate ─────────────
+
+model Candidate {
+  id                 String           @id @default(cuid())
+  sourceConnectionId String
+  sourceConnection   SourceConnection @relation(fields: [sourceConnectionId], references: [id])
+  sourceEmployeeCode String           // "E8685" — dedup key
+
+  fullName           String
+  gender             String?
+  employeeType       String?          // Payroll | Contractual - RHE
+  educationType      String?
+  taluka             String?
+  districtId         String?
+  district           District?        @relation(fields: [districtId], references: [id])
+  departmentHeadId   String?
+  departmentHead     DepartmentHead?  @relation(fields: [departmentHeadId], references: [id])
+  subProjectId       String?
+  subProject         SubProject?      @relation(fields: [subProjectId], references: [id])
+  designationId      String?
+  designation        Designation?     @relation(fields: [designationId], references: [id])
+
+  joiningDate        DateTime?
+  leavingDate        DateTime?
+  isPresent          Boolean?
+  docVerificationStatus    String?
+  officeVerificationStatus String?
+
+  contentHash        String           // for incremental sync
+  firstSeenAt        DateTime         @default(now())
+  lastSyncedAt       DateTime
+  isDeletedAtSource  Boolean          @default(false)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  profile            CandidateProfile?
+  syncRecords        SyncRecord[]
+
+  @@unique([sourceConnectionId, sourceEmployeeCode])
+  @@index([districtId])
+  @@index([departmentHeadId])
+  @@index([designationId])
+  @@index([fullName])
+}
+
+// Optional, approval-gated contact fields kept apart so they can be
+// excluded from queries/AI by default.
+model CandidateProfile {
+  id            String    @id @default(cuid())
+  candidateId   String    @unique
+  candidate     Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  mobile        String?
+  officialEmail String?
+  updatedAt     DateTime  @updatedAt
+}
+
+// ───────────── Sync ─────────────
+
+enum SyncStatus {
+  QUEUED
+  RUNNING
+  AWAITING_MFA
+  SUCCEEDED
+  PARTIAL
+  FAILED
+  CANCELLED
+}
+
+enum SyncRecordOutcome {
+  CREATED
+  UPDATED
+  UNCHANGED
+  FAILED
+}
+
+model SyncJob {
+  id                 String           @id @default(cuid())
+  sourceConnectionId String
+  sourceConnection   SourceConnection @relation(fields: [sourceConnectionId], references: [id])
+  triggeredById      String?
+  triggeredBy        User?            @relation(fields: [triggeredById], references: [id])
+  mode               String           // MANUAL | SCHEDULED | RETRY
+  status             SyncStatus       @default(QUEUED)
+  filters            Json?
+  checkpoint         Json?            // { page: 12 } for resume
+  totalRecords       Int              @default(0)
+  processed          Int              @default(0)
+  created            Int              @default(0)
+  updated            Int              @default(0)
+  unchanged          Int              @default(0)
+  failed             Int              @default(0)
+  startedAt          DateTime?
+  finishedAt         DateTime?
+  createdAt          DateTime         @default(now())
+  records            SyncRecord[]
+  errors             SyncError[]
+
+  @@index([sourceConnectionId, status])
+}
+
+model SyncRecord {
+  id                 String            @id @default(cuid())
+  syncJobId          String
+  syncJob            SyncJob           @relation(fields: [syncJobId], references: [id], onDelete: Cascade)
+  candidateId        String?
+  candidate          Candidate?        @relation(fields: [candidateId], references: [id])
+  sourceEmployeeCode String
+  outcome            SyncRecordOutcome
+  createdAt          DateTime          @default(now())
+
+  @@index([syncJobId])
+}
+
+model SyncError {
+  id                 String    @id @default(cuid())
+  syncJobId          String
+  syncJob            SyncJob   @relation(fields: [syncJobId], references: [id], onDelete: Cascade)
+  sourceEmployeeCode String?
+  stage              String    // LOGIN | LISTING | PROFILE | VALIDATION | DB
+  message            String    @db.Text // never contains raw PII
+  retryCount         Int       @default(0)
+  resolvedAt         DateTime?
+  createdAt          DateTime  @default(now())
+
+  @@index([syncJobId])
+}
+
+// ───────────── Audit ─────────────
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String   // LOGIN, SEARCH, EXPORT, AI_QUERY, SYNC_START, SETTINGS_UPDATE
+  target    String?
+  metadata  Json?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+}

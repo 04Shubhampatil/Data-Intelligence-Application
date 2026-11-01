@@ -1,0 +1,587 @@
+// Data Intelligence Application — MySQL 8 via Prisma 7.
+// Only allow-listed (approved) candidate fields are modelled here.
+// See docs/PHASE-1-ANALYSIS.md §6 for the field policy.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+// ───────────── Auth / RBAC ─────────────
+
+model User {
+  id             String     @id @default(cuid())
+  email          String     @unique
+  name           String?
+  passwordHash   String
+  isActive       Boolean    @default(true)
+  roleId         String
+  role           Role       @relation(fields: [roleId], references: [id])
+  districtAssignments UserDistrictAssignment[] @relation("UserAssignments")
+  assignmentsMade     UserDistrictAssignment[] @relation("AssignedBy")
+  failedLogins   Int        @default(0)
+  lockedUntil    DateTime?
+  lastLoginAt    DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  auditLogs        AuditLog[]
+  syncJobs         SyncJob[]
+  resetTokens      PasswordResetToken[]
+  assistantResults AssistantResult[]
+  reportRuns       ReportRun[]
+  syncSchedules    SyncSchedule[]
+  reviews          CandidateReview[] @relation("Reviews")
+  confirmations    CandidateReview[] @relation("ReviewConfirmations")
+  comments         CandidateComment[]
+  sentMessages     DistrictMessage[]  @relation("SentMessages")
+  messageReceipts  MessageRecipient[]
+  notifications    Notification[]
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique // SUPER_ADMIN | ADMIN | VIEWER
+  description String?
+  permissions Json // string[] of Permission keys
+  users       User[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique // sha256 of the emailed token; raw token never stored
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+// ───────────── Source ─────────────
+
+enum SourceAuthMode {
+  MANUAL_SESSION // an admin signs in by hand (incl. OTP); the worker reuses that session
+  CREDENTIALS // the worker fills the login form with stored credentials (not yet enabled)
+}
+
+model SourceConnection {
+  id               String         @id @default(cuid())
+  name             String
+  adapterKey       String // "mahahrd"
+  baseUrl          String
+  authMode         SourceAuthMode @default(MANUAL_SESSION)
+  username         String?
+  encryptedSecret  String?        @db.Text // AES-256-GCM; decrypted only in the worker
+  encryptedSession String?        @db.MediumText // AES-256-GCM Playwright storageState
+  sessionSavedAt   DateTime?
+  isActive         Boolean        @default(true)
+  rateLimitMs      Int            @default(2000)
+  lastSyncedAt     DateTime?
+  sourceFilters    Json? // filter options discovered on the source (e.g. districts), refreshed every sync
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  candidates    Candidate[]
+  syncJobs      SyncJob[]
+  fieldPolicies FieldPolicy[]
+  schedules     SyncSchedule[]
+  suppressed    SuppressedRecord[]
+  documentPolicies DocumentPolicy[]
+}
+
+model FieldPolicy {
+  id                 String           @id @default(cuid())
+  sourceConnectionId String
+  sourceConnection   SourceConnection @relation(fields: [sourceConnectionId], references: [id], onDelete: Cascade)
+  fieldKey           String
+  allowed            Boolean          @default(false)
+  maskInUi           Boolean          @default(false)
+  allowInAi          Boolean          @default(false)
+  updatedAt          DateTime         @updatedAt
+
+  @@unique([sourceConnectionId, fieldKey])
+}
+
+/// Which districts a user may see/act on. Super Admin/Admin have none (global).
+model UserDistrictAssignment {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation("UserAssignments", fields: [userId], references: [id], onDelete: Cascade)
+  districtId   String
+  district     District @relation(fields: [districtId], references: [id], onDelete: Cascade)
+  assignedById String?
+  assignedBy   User?    @relation("AssignedBy", fields: [assignedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime @default(now())
+
+  @@unique([userId, districtId])
+  @@index([districtId])
+}
+
+// ───────────── Lookups (mirrors source filter options) ─────────────
+
+model District {
+  id          String      @id @default(cuid())
+  name        String      @unique
+  candidates  Candidate[]
+  assignments UserDistrictAssignment[]
+  messages    DistrictMessage[]
+}
+
+/// "Department/Project" on the source, e.g. PRADHAN MANTRI AWAS YOJANA
+model DepartmentHead {
+  id          String       @id @default(cuid())
+  name        String       @unique
+  subProjects SubProject[]
+  candidates  Candidate[]
+}
+
+/// "Department" filter on the source (distinct from Department/Project)
+model Department {
+  id         String      @id @default(cuid())
+  name       String      @unique
+  candidates Candidate[]
+}
+
+model SubProject {
+  id               String         @id @default(cuid())
+  name             String
+  departmentHeadId String
+  departmentHead   DepartmentHead @relation(fields: [departmentHeadId], references: [id])
+  candidates       Candidate[]
+
+  @@unique([departmentHeadId, name])
+}
+
+model Designation {
+  id         String      @id @default(cuid())
+  name       String      @unique
+  candidates Candidate[]
+}
+
+// ───────────── Candidate ─────────────
+
+model Candidate {
+  id                 String           @id @default(cuid())
+  sourceConnectionId String
+  sourceConnection   SourceConnection @relation(fields: [sourceConnectionId], references: [id])
+  sourceEmployeeCode String // e.g. "E1234" — dedup key
+
+  fullName         String
+  gender           String?
+  employeeType     String?
+  educationType    String?
+  taluka           String?
+  districtId       String?
+  district         District?       @relation(fields: [districtId], references: [id])
+  departmentHeadId String?
+  departmentHead   DepartmentHead? @relation(fields: [departmentHeadId], references: [id])
+  departmentId     String?
+  department       Department?     @relation(fields: [departmentId], references: [id])
+  subProjectId     String?
+  subProject       SubProject?     @relation(fields: [subProjectId], references: [id])
+  designationId    String?
+  designation      Designation?    @relation(fields: [designationId], references: [id])
+
+  joiningDate              DateTime?
+  leavingDate              DateTime?
+  isPresent                Boolean?
+  sourceStatus             String?
+  docVerificationStatus    String?
+  officeVerificationStatus String?
+
+  contentHash       String
+  profileSyncedAt   DateTime? // last time profile-page fields were read
+  firstSeenAt       DateTime @default(now())
+  lastSyncedAt      DateTime
+  isDeletedAtSource Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Current review state (denormalised from CandidateReview for lists and filters)
+  reviewStatus              ReviewStatus @default(PENDING_REVIEW)
+  reviewUpdated             Boolean      @default(false) // a later decision replaced an earlier one
+  reviewPendingConfirmation Boolean      @default(false) // District Viewer decision awaiting District Admin confirmation
+  reviewedAt                DateTime?
+
+  profile     CandidateProfile?
+  syncRecords SyncRecord[]
+  documents   CandidateDocument[]
+  reviews     CandidateReview[]
+  comments    CandidateComment[]
+
+  @@unique([sourceConnectionId, sourceEmployeeCode])
+  @@index([districtId])
+  @@index([departmentHeadId])
+  @@index([departmentId])
+  @@index([subProjectId])
+  @@index([designationId])
+  @@index([fullName])
+  @@index([reviewStatus])
+}
+
+/// Approval-gated contact fields, kept apart so default queries and the AI never load them.
+model CandidateProfile {
+  id            String    @id @default(cuid())
+  candidateId   String    @unique
+  candidate     Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  mobile        String?
+  officialEmail String?
+  updatedAt     DateTime  @updatedAt
+}
+
+// ───────────── Documents (Phase 9.3) ─────────────
+
+enum DocumentKind {
+  PROFILE_PHOTO
+  RESUME
+  A_FORM
+  SSC_CERTIFICATE
+  HSC_CERTIFICATE
+  OTHER_CERTIFICATE
+  AADHAAR_FRONT
+  AADHAAR_BACK
+  PAN
+  BANK_PASSBOOK
+  OTHER
+}
+
+enum DocumentStatus {
+  STORED
+  MISSING_AT_SOURCE
+  UNSUPPORTED
+  FAILED
+  QUARANTINED
+}
+
+/// A file copied from the source into private storage. storageKey is never a URL.
+model CandidateDocument {
+  id           String         @id @default(cuid())
+  candidateId  String
+  candidate    Candidate      @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  kind         DocumentKind
+  status       DocumentStatus
+  originalName String
+  mimeType     String?
+  sizeBytes    Int?
+  sha256       String?
+  storageKey   String?
+  sourceRef    String         @db.Text
+  scanStatus   String? // clean | infected | skipped
+  error        String?
+  extractedAt  DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@unique([candidateId, kind])
+  @@index([candidateId])
+}
+
+/// Which document kinds may be fetched from a source. Everything is off unless switched on.
+model DocumentPolicy {
+  sourceConnectionId String
+  sourceConnection   SourceConnection @relation(fields: [sourceConnectionId], references: [id], onDelete: Cascade)
+  kind               DocumentKind
+  allowed            Boolean          @default(false)
+  updatedAt          DateTime         @updatedAt
+
+  @@id([sourceConnectionId, kind])
+}
+
+// ───────────── Review (Phase 9.4) ─────────────
+
+enum ReviewStatus {
+  PENDING_REVIEW
+  SELECTED
+  REJECTED
+}
+
+enum ReviewDecision {
+  SELECTED
+  REJECTED
+}
+
+/// One row per decision. Append-only: never updated (except confirmation fields), never deleted.
+model CandidateReview {
+  id                   String         @id @default(cuid())
+  candidateId          String
+  candidate            Candidate      @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  decision             ReviewDecision
+  remark               String         @db.Text
+  previousStatus       ReviewStatus
+  newStatus            ReviewStatus
+  isOverride           Boolean        @default(false)
+  overridesId          String?
+  reviewedById         String
+  reviewedBy           User           @relation("Reviews", fields: [reviewedById], references: [id])
+  districtId           String?
+  requiresConfirmation Boolean        @default(false)
+  confirmedById        String?
+  confirmedBy          User?          @relation("ReviewConfirmations", fields: [confirmedById], references: [id])
+  confirmedAt          DateTime?
+  createdAt            DateTime       @default(now())
+
+  @@index([candidateId, createdAt])
+  @@index([districtId, createdAt])
+  @@index([reviewedById, createdAt])
+  @@index([requiresConfirmation, confirmedAt])
+}
+
+/// Internal review comments (never shown to candidates). Append-only.
+model CandidateComment {
+  id          String    @id @default(cuid())
+  candidateId String
+  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  authorId    String
+  author      User      @relation(fields: [authorId], references: [id])
+  body        String    @db.Text
+  createdAt   DateTime  @default(now())
+
+  @@index([candidateId, createdAt])
+}
+
+// ───────────── District messaging (Phase 9.6) ─────────────
+
+enum MessageKind {
+  MESSAGE
+  ANNOUNCEMENT
+  REMINDER
+}
+
+/// A message from a District Admin (or global admin) to the users of one district; replies share the parent's thread.
+model DistrictMessage {
+  id         String             @id @default(cuid())
+  districtId String
+  district   District           @relation(fields: [districtId], references: [id], onDelete: Cascade)
+  senderId   String
+  sender     User               @relation("SentMessages", fields: [senderId], references: [id])
+  kind       MessageKind        @default(MESSAGE)
+  subject    String             @db.VarChar(200)
+  body       String             @db.Text
+  parentId   String?
+  parent     DistrictMessage?   @relation("Thread", fields: [parentId], references: [id], onDelete: Cascade)
+  replies    DistrictMessage[]  @relation("Thread")
+  recipients MessageRecipient[]
+  createdAt  DateTime           @default(now())
+
+  @@index([districtId, createdAt])
+  @@index([parentId, createdAt])
+  @@index([senderId, createdAt])
+}
+
+/// Delivery + read receipt per recipient.
+model MessageRecipient {
+  messageId   String
+  message     DistrictMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deliveredAt DateTime        @default(now())
+  readAt      DateTime?
+
+  @@id([messageId, userId])
+  @@index([userId, readAt])
+}
+
+/// In-app notification (header bell). type: MESSAGE | REVIEW_AWAITING | REVIEW_CONFIRMED | REVIEW_OVERRIDDEN | REMINDER
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String    @db.VarChar(40)
+  title     String    @db.VarChar(200)
+  body      String?   @db.Text
+  link      String?   @db.VarChar(300)
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, readAt, createdAt])
+}
+
+// ───────────── Sync ─────────────
+
+enum SyncStatus {
+  QUEUED
+  RUNNING
+  AWAITING_MFA
+  SUCCEEDED
+  PARTIAL
+  FAILED
+  CANCELLED
+}
+
+enum SyncMode {
+  MANUAL
+  SCHEDULED
+  RETRY
+}
+
+enum SyncRecordOutcome {
+  CREATED
+  UPDATED
+  UNCHANGED
+  FAILED
+}
+
+model SyncJob {
+  id                 String           @id @default(cuid())
+  sourceConnectionId String
+  sourceConnection   SourceConnection @relation(fields: [sourceConnectionId], references: [id])
+  triggeredById      String?
+  triggeredBy        User?            @relation(fields: [triggeredById], references: [id])
+  mode               SyncMode         @default(MANUAL)
+  status             SyncStatus       @default(QUEUED)
+  filters            Json?
+  checkpoint         Json? // { start } — resume point in the listing
+  cancelRequested    Boolean          @default(false)
+  heartbeatAt        DateTime? // worker liveness; stale RUNNING jobs can be reclaimed
+  retryOfJobId       String?
+  scheduleId         String?
+  totalRecords       Int              @default(0)
+  processed          Int              @default(0)
+  created            Int              @default(0)
+  updated            Int              @default(0)
+  unchanged          Int              @default(0)
+  failed             Int              @default(0)
+  startedAt          DateTime?
+  finishedAt         DateTime?
+  createdAt          DateTime         @default(now())
+
+  records SyncRecord[]
+  errors  SyncError[]
+
+  @@index([sourceConnectionId, status])
+  @@index([status, createdAt])
+  @@index([createdAt])
+}
+
+model SyncRecord {
+  id                 String            @id @default(cuid())
+  syncJobId          String
+  syncJob            SyncJob           @relation(fields: [syncJobId], references: [id], onDelete: Cascade)
+  candidateId        String?
+  candidate          Candidate?        @relation(fields: [candidateId], references: [id], onDelete: SetNull)
+  sourceEmployeeCode String
+  outcome            SyncRecordOutcome
+  createdAt          DateTime          @default(now())
+
+  @@index([syncJobId])
+}
+
+model SyncError {
+  id                 String    @id @default(cuid())
+  syncJobId          String
+  syncJob            SyncJob   @relation(fields: [syncJobId], references: [id], onDelete: Cascade)
+  sourceEmployeeCode String?
+  stage              String // LOGIN | LISTING | PROFILE | VALIDATION | DB
+  message            String    @db.Text // must never contain raw PII
+  retryCount         Int       @default(0)
+  resolvedAt         DateTime?
+  createdAt          DateTime  @default(now())
+
+  @@index([syncJobId, resolvedAt])
+}
+
+enum ScheduleFrequency {
+  HOURLY
+  DAILY
+  WEEKLY
+}
+
+/// A recurring sync. The worker claims due schedules and queues a SyncJob (mode SCHEDULED).
+model SyncSchedule {
+  id                 String            @id @default(cuid())
+  sourceConnectionId String
+  sourceConnection   SourceConnection  @relation(fields: [sourceConnectionId], references: [id], onDelete: Cascade)
+  name               String
+  frequency          ScheduleFrequency
+  minute             Int               @default(0) // 0-59
+  hour               Int               @default(2) // 0-23, DAILY/WEEKLY (local time, TZ env)
+  weekday            Int               @default(1) // 0=Sunday … 6, WEEKLY
+  options            Json // SyncOptions
+  enabled            Boolean           @default(true)
+  nextRunAt          DateTime?
+  lastRunAt          DateTime?
+  lastJobId          String?
+  lastStatus         SyncStatus?
+  createdById        String?
+  createdBy          User?             @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  @@index([enabled, nextRunAt])
+}
+
+/// Small key/value table for liveness and operational state (e.g. worker heartbeat).
+model SystemStatus {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
+/// Employee codes that must never be stored again (right to erasure). Checked by the sync pipeline.
+model SuppressedRecord {
+  id                 String           @id @default(cuid())
+  sourceConnectionId String
+  sourceConnection   SourceConnection @relation(fields: [sourceConnectionId], references: [id], onDelete: Cascade)
+  sourceEmployeeCode String
+  reason             String?
+  createdById        String?
+  createdAt          DateTime         @default(now())
+
+  @@unique([sourceConnectionId, sourceEmployeeCode])
+}
+
+// ───────────── AI assistant ─────────────
+
+/// A result set the assistant produced: the validated tool parameters, never the rows.
+/// Export re-runs the same query under the same user's permissions.
+model AssistantResult {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tool       String
+  params     Json
+  rowCount   Int
+  title      String
+  createdAt  DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+/// One generated report export (history). Stores the kind and filters, never the rows.
+model ReportRun {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      String // district | project | department | subProject | designation | employeeType | gender | docVerificationStatus
+  filters   Json
+  rowCount  Int
+  groups    Int
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([createdAt])
+}
+
+// ───────────── Audit ─────────────
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String // LOGIN, LOGIN_FAILED, SEARCH, EXPORT, AI_QUERY, SYNC_START, SETTINGS_UPDATE
+  target    String?
+  metadata  Json?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+}

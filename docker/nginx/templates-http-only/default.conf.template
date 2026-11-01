@@ -1,0 +1,8 @@
+# Bootstrap config used ONLY until the first Let's Encrypt certificate is issued.
+upstream web { server web:3000; }
+server {
+    listen 80;
+    server_name ${DOMAIN};
+    location ^~ /.well-known/acme-challenge/ { root /var/www/certbot; }
+    location / { include /etc/nginx/snippets/proxy.conf; }
+}
