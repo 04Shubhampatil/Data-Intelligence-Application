@@ -14,6 +14,8 @@ import { getDistrictCounts, getDistrictViewers, getRecentReviewActivity, getRevi
 import { prisma } from "@di/db";
 import { formatDateTime, formatNumber, relativeTime } from "@/lib/format";
 import { DistrictFilters } from "./district-filters";
+import { CandidateAvatar } from "@/components/candidate-avatar";
+import { canOpenDashboard, homeFor } from "@/lib/rbac";
 import { composeOptions, listThreads } from "@/server/services/message.service";
 import { ComposeDialog } from "@/app/(dashboard)/messages/compose-dialog";
 import { MessageKindBadge } from "@/components/message-kind-badge";
@@ -38,8 +40,8 @@ function Stat({ label, value, icon: Icon, tone, href }: { label: string; value: 
 export default async function DistrictDashboardPage({ searchParams }: PageProps<"/district">) {
   const user = await requireUser("reviews:read");
   // Global roles use the main dashboard; this page is for district-scoped roles (or a Super Admin previewing it).
-  if (user.role === "DISTRICT_VIEWER") redirect("/review");
-  if (!user.districtScopeIds.length && user.role !== "SUPER_ADMIN") redirect("/");
+  // Only District Admins (and a supervising Super Admin) may open this page; everyone else goes to their own home.
+  if (!canOpenDashboard("district", user.role)) redirect(homeFor(user.role));
 
   const sp = await searchParams;
   const f = parseReviewFilters(sp);
@@ -95,7 +97,7 @@ export default async function DistrictDashboardPage({ searchParams }: PageProps<
             <div className="overflow-x-auto">
               <table className="w-full min-w-[980px] text-sm">
                 <thead>
-                  <tr className="bg-brand-navy text-left text-xs font-semibold uppercase tracking-wide text-white">
+                  <tr className="border-b bg-muted/70 text-left text-xs font-semibold text-foreground">
                     <th className="px-4 py-3">Candidate</th>
                     <th className="px-4 py-3">Designation</th>
                     <th className="px-4 py-3">Project</th>
@@ -112,8 +114,13 @@ export default async function DistrictDashboardPage({ searchParams }: PageProps<
                     return (
                       <tr key={r.id} className="hover:bg-accent/40">
                         <td className="px-4 py-2.5">
-                          <p className="font-medium">{r.fullName}</p>
-                          <p className="text-xs text-muted-foreground">{r.sourceEmployeeCode} · {r.district?.name ?? "—"}</p>
+                          <div className="flex items-center gap-3">
+                            <CandidateAvatar photoUrl={r.photoUrl} name={r.fullName} size="sm" />
+                            <div className="min-w-0">
+                              <p className="font-medium">{r.fullName}</p>
+                              <p className="text-xs text-muted-foreground">{r.sourceEmployeeCode} · {r.district?.name ?? "—"}</p>
+                            </div>
+                          </div>
                         </td>
                         <td className="px-4 py-2.5 text-xs">{r.designation?.name ?? "—"}</td>
                         <td className="px-4 py-2.5 text-xs">{r.departmentHead?.name ?? "—"}</td>

@@ -1,4 +1,4 @@
-import { Download, FileQuestion, FileWarning, ShieldAlert } from "lucide-react";
+import { Download, FileQuestion, FileWarning, Lock, ShieldAlert } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +12,8 @@ const STATUS: Record<string, { label: string; cls: string }> = {
   FAILED: { label: "Download failed", cls: "border-0 bg-destructive/10 text-destructive" },
   QUARANTINED: { label: "Quarantined (malware)", cls: "border-0 bg-destructive/10 text-destructive" },
 };
+
+const CATEGORY: Record<string, string> = { photo: "Photo", education: "Education", employment: "Employment", identity: "Identity", bank: "Bank", other: "Other" };
 
 /** Thumbnails + download links for a candidate's stored files. Links are signed per user and expire in 10 minutes. */
 export function DocumentsGrid({ documents, notApproved }: { documents: DocumentView[]; notApproved: string[] }) {
@@ -48,14 +50,25 @@ export function DocumentsGrid({ documents, notApproved }: { documents: DocumentV
                   </div>
                   <div className="space-y-1.5 p-3">
                     <div className="flex items-start justify-between gap-2">
-                      <p className="text-sm font-semibold">{d.label}</p>
-                      <Badge className={st.cls}>{st.label}</Badge>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold">{d.label}</p>
+                        <p className="text-[11px] capitalize text-muted-foreground">{CATEGORY[d.category] ?? d.category}{d.encrypted && <><Lock className="ml-1 mr-0.5 inline size-3" />encrypted</>}</p>
+                      </div>
+                      <div className="flex flex-col items-end gap-1">
+                        <Badge className={st.cls}>{st.label}</Badge>
+                        {d.sourceVerification && (
+                          <Badge className={d.sourceVerification === "Verified" ? "border-0 bg-success/10 text-success" : d.sourceVerification === "Rejected" ? "border-0 bg-destructive/10 text-destructive" : "border-0 bg-muted text-muted-foreground"}>
+                            {d.sourceVerification} at source
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                     <p className="truncate font-mono text-[11px] text-muted-foreground" title={d.originalName}>{d.originalName}</p>
                     <p className="text-[11px] text-muted-foreground">
                       {d.mimeType ?? "—"}{d.sizeBytes ? ` · ${formatNumber(Math.round(d.sizeBytes / 1024))} KB` : ""} · {formatDateTime(d.extractedAt)}
                       {d.scanStatus === "skipped" && " · not virus-scanned"}
                     </p>
+                    {d.error && <p className="text-[11px] text-destructive">{d.error}</p>}
                     {d.downloadUrl && (
                       <div className="flex gap-2 pt-1">
                         <Button size="sm" variant="outline" asChild>

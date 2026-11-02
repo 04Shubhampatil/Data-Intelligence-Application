@@ -81,6 +81,7 @@ describe("profile parsing", () => {
   it("reads only mapped fields", () => {
     expect(parsed).toMatchObject({
       taluka: "Testpur",
+      officialEmployeeId: "E09999",
       joiningDate: "15 Jan 2024",
       officialEmail: "Official.Person@Example.Test",
       sourceStatus: "Active",

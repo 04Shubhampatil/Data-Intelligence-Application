@@ -4,6 +4,9 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireUser } from "@/server/auth/session";
 import { MessageError, replyMessage, sendMessage } from "@/server/services/message.service";
+import { rateLimit } from "@/server/security/rate-limit";
+
+const TOO_FAST: MessageActionState = { error: "Too many messages in a short time. Please wait a few minutes." };
 
 export type MessageActionState = { ok?: boolean; error?: string; message?: string; threadId?: string } | undefined;
 const id = z.string().regex(/^[a-z0-9]{1,40}$/i);
@@ -23,6 +26,7 @@ const sendSchema = z.object({
 
 export async function sendMessageAction(_prev: MessageActionState, formData: FormData): Promise<MessageActionState> {
   const user = await requireUser("messages:send");
+  if (!rateLimit(`msg:send:${user.id}`, 20, 60 * 60_000).ok) return TOO_FAST;
   const parsed = sendSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: "Please check the form." };
   const recipientIds = formData.getAll("recipientIds").map(String).filter((v) => id.safeParse(v).success);
@@ -41,6 +45,7 @@ const replySchema = z.object({ parentId: id, body: z.string().max(5000) });
 
 export async function replyMessageAction(_prev: MessageActionState, formData: FormData): Promise<MessageActionState> {
   const user = await requireUser("messages:read");
+  if (!rateLimit(`msg:reply:${user.id}`, 40, 10 * 60_000).ok) return TOO_FAST;
   const parsed = replySchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: "Please check the reply." };
   try {

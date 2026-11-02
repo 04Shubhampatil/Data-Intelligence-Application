@@ -7,3 +7,5 @@ export * from "./schedule";
 export * from "./documents";
 export * from "./storage";
 export * from "./clamav";
+export * from "./personal";
+export * from "./sensitive";

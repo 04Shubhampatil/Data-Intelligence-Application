@@ -25,20 +25,25 @@ const KINDS = [
 /** Compose a message / announcement / reminder to the users of one district. */
 export function ComposeDialog({ districts, compact }: { districts: ComposeDistrict[]; compact?: boolean }) {
   const router = useRouter();
-  const [state, action, pending] = useActionState(sendMessageAction, undefined);
   const [open, setOpen] = useState(false);
   const [districtId, setDistrictId] = useState(districts[0]?.id ?? "");
   const [kind, setKind] = useState<(typeof KINDS)[number]["value"]>("MESSAGE");
   const [everyone, setEveryone] = useState(true);
   const [picked, setPicked] = useState<string[]>([]);
   const district = districts.find((d) => d.id === districtId);
+  const [state, action, pending] = useActionState(async (prev: Parameters<typeof sendMessageAction>[0], fd: FormData) => {
+    const r = await sendMessageAction(prev, fd);
+    if (r?.ok) {
+      setOpen(false);
+      setPicked([]);
+      setEveryone(true);
+    }
+    return r;
+  }, undefined);
 
   useEffect(() => {
     if (state?.ok) {
       toast.success(state.message);
-      setOpen(false);
-      setPicked([]);
-      setEveryone(true);
       if (state.threadId) router.push(`/messages/${state.threadId}`);
     } else if (state?.error) toast.error(state.error);
   }, [state, router]);

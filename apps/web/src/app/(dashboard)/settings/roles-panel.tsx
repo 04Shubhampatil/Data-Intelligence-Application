@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { setRolePermissionAction } from "./user-actions";
+import { isReservedFor } from "@di/db/permissions";
 
 type RoleInfo = { name: string; label: string; description: string | null; permissions: string[]; users: number };
 
@@ -31,7 +32,7 @@ export function RolesPanel({ roles, permissions, labels, canEdit }: { roles: Rol
       <CardContent className="overflow-x-auto p-0">
         <table className="w-full min-w-[900px] text-sm">
           <thead>
-            <tr className="bg-brand-navy text-left text-xs font-semibold uppercase tracking-wide text-white">
+            <tr className="border-b bg-muted/70 text-left text-xs font-semibold text-foreground">
               <th className="px-4 py-3">Permission</th>
               {roles.map((r) => (
                 <th key={r.name} className="px-3 py-3 text-center">
@@ -50,11 +51,13 @@ export function RolesPanel({ roles, permissions, labels, canEdit }: { roles: Rol
                 </td>
                 {roles.map((r) => {
                   const has = r.permissions.includes(p);
-                  const locked = r.name === "SUPER_ADMIN" || !canEdit;
+                  // Decisions and review comments are reserved for the Super Admin and can't be granted to other roles.
+                  const reserved = isReservedFor(r.name, p);
+                  const locked = r.name === "SUPER_ADMIN" || !canEdit || reserved;
                   return (
                     <td key={r.name} className="px-3 py-2 text-center">
                       {locked ? (
-                        has ? <Badge className="border-0 bg-success/10 text-success">✓</Badge> : <span className="text-muted-foreground">—</span>
+                        has && !reserved ? <Badge className="border-0 bg-success/10 text-success">✓</Badge> : <span className="text-muted-foreground" title={reserved ? "Super Admin only" : undefined}>—</span>
                       ) : (
                         <Checkbox checked={has} disabled={pending} onCheckedChange={(c) => toggle(r.name, p, c === true)} aria-label={`${r.label}: ${labels[p] ?? p}`} />
                       )}

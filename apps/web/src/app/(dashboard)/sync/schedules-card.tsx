@@ -3,7 +3,8 @@
 import { useActionState, useEffect, useState, useTransition } from "react";
 import { CalendarClock, Loader2, Pause, Play, Plus, Trash2, Zap } from "lucide-react";
 import { toast } from "sonner";
-import { describeSchedule } from "@di/core";
+// Browser component: import the schedule helpers only, never the "@di/core" barrel (it re-exports server-only fs/crypto modules).
+import { describeSchedule } from "@di/core/schedule";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";

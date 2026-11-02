@@ -39,6 +39,27 @@ describe.skipIf(!hasDb)("retention & erasure (MySQL)", async () => {
     expect(await prisma.syncJob.findUnique({ where: { id: oldActive.id } })).not.toBeNull();
   });
 
+  it("purges read notifications after 90 days and unread ones after a year", async () => {
+    const role = await prisma.role.findUniqueOrThrow({ where: { name: "VIEWER" } });
+    const u = await prisma.user.create({ data: { email: `${TAG.toLowerCase()}@example.test`, passwordHash: "x", roleId: role.id } });
+    try {
+      const d = (days: number) => new Date(Date.now() - days * 86_400_000);
+      const mk = (createdAt: Date, readAt: Date | null) => prisma.notification.create({ data: { userId: u.id, type: "MESSAGE", title: "t", createdAt, readAt } });
+      const oldRead = await mk(d(100), d(99));
+      const oldUnread = await mk(d(100), null);
+      const recentRead = await mk(d(10), d(9));
+      const ancient = await mk(d(400), null);
+      const r = await runRetentionCleanup(new Date(), retentionSettingsSchema.parse({ syncLogDays: 0, auditLogDays: 0, assistantResultDays: 0, reportRunDays: 0, removedAtSourcePurgeDays: 0 }));
+      expect(r.notifications).toBeGreaterThanOrEqual(2);
+      const left = (await prisma.notification.findMany({ where: { userId: u.id }, select: { id: true } })).map((n) => n.id);
+      expect(left.sort()).toEqual([oldUnread.id, recentRead.id].sort());
+      expect(left).not.toContain(oldRead.id);
+      expect(left).not.toContain(ancient.id);
+    } finally {
+      await prisma.user.delete({ where: { id: u.id } });
+    }
+  });
+
   it("0 means keep forever", async () => {
     const r = await runRetentionCleanup(new Date(), retentionSettingsSchema.parse({ syncLogDays: 0, auditLogDays: 0, assistantResultDays: 0, reportRunDays: 0, removedAtSourcePurgeDays: 0 }));
     expect(r).toMatchObject({ syncJobs: 0, auditLogs: 0, assistantResults: 0, reportRuns: 0, purgedCandidates: 0 });

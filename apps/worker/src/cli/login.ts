@@ -1,5 +1,6 @@
 import "../env";
 import { launchBrowser } from "../browser/launch";
+import { gotoWithRetry } from "../browser/navigate";
 import { prisma } from "@di/db";
 import { getAdapter } from "../adapters";
 import { saveSession } from "../browser/session";
@@ -26,7 +27,7 @@ try {
   const context = await browser.newContext({ viewport: { width: 1280, height: 860 } });
   const page = await context.newPage();
   page.on("dialog", (d) => void d.dismiss().catch(() => {}));
-  await page.goto(new URL(adapter.loginPath, conn.baseUrl).toString());
+  await gotoWithRetry(page, new URL(adapter.loginPath, conn.baseUrl).toString(), { log: (m) => console.log(`  ${m}`) });
 
   const deadline = Date.now() + TIMEOUT_MS;
   let signedIn = false;

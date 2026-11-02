@@ -1,6 +1,6 @@
 # Design — District-wise candidate management & review
 
-**Status:** approved 2026-11-01. Phases 1–5 ✅ done (roles & assignments; district isolation with denial tests; documents & photo; selection/rejection with append-only history; District Admin `/district` and District Viewer `/review` dashboards). Phases 6–8 pending (messaging/notifications, AI review filters, security review & deployment).
+**Status:** approved 2026-11-01. Phases 1–6 ✅ done (roles & assignments; district isolation with denial tests; documents & photo; selection/rejection with append-only history; District Admin `/district` and District Viewer `/review` dashboards; district messages/announcements/reminders with read receipts and the notifications bell; AI review filters, `count_reviews` and `get_review_history`, no decision tool; Phase 8 security review — see `docs/SECURITY-REVIEW.md` — and deployment docs). All 8 phases done; **not deployed** (by decision).
 **Scope:** extends the existing app (Next.js 16 · Prisma 7 · MySQL · Auth.js · Playwright worker). Nothing is rebuilt; existing data is preserved by additive migrations.
 
 ---

@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 import { redirect } from "next/navigation";
 import { prisma, parsePermissions, type Permission } from "@di/db";
+import { effectivePermissions } from "@di/db/permissions";
 import { auth } from "@/auth";
 import { hasPermission } from "@/lib/rbac";
 
@@ -42,7 +43,8 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
     email: user.email,
     name: user.name,
     role: user.role.name,
-    permissions: parsePermissions(user.role.permissions),
+    // Super Admin-only permissions (decisions, review comments) are removed for every other role here.
+    permissions: effectivePermissions(user.role.name, parsePermissions(user.role.permissions)),
     districtScopeIds: user.districtAssignments.map((d) => d.districtId),
   };
 });

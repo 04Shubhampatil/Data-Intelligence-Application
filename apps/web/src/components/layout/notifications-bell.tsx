@@ -31,11 +31,14 @@ export function NotificationsBell({ initialUnread }: { initialUnread: number }) 
   }, []);
 
   useEffect(() => {
-    void load();
+    const first = setTimeout(() => void load(), 0);
     const t = setInterval(() => {
       if (document.visibilityState === "visible") void load();
     }, POLL_MS);
-    return () => clearInterval(t);
+    return () => {
+      clearTimeout(first);
+      clearInterval(t);
+    };
   }, [load]);
 
   const markAll = async () => {
@@ -57,10 +60,10 @@ export function NotificationsBell({ initialUnread }: { initialUnread: number }) 
       }}
     >
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="icon" className="relative" aria-label={unread ? `${unread} unread notifications` : "Notifications"}>
+        <Button variant="ghost" size="icon" className="relative size-10 rounded-full" aria-label={unread ? `${unread} unread notifications` : "Notifications"}>
           <Bell />
           {unread > 0 && (
-            <span className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-brand-orange px-1 text-[10px] font-bold text-white" aria-hidden>
+            <span className="absolute right-0.5 top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white ring-2 ring-background" aria-hidden>
               {unread > 99 ? "99+" : unread}
             </span>
           )}

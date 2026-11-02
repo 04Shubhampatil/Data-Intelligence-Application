@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { SyncStatusBadge } from "@/components/sync-status-badge";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { requireUser } from "@/server/auth/session";
-import { getRecentJobs, getSources, getWorkerStatus, isActive, isResumable, jobLabel, jobOptions, listSchedules } from "@/server/services/sync.service";
+import { getRecentJobs, getSources, getWorkerStatus, isActive, isResumable, jobLabel, jobOptions, listSchedules, isQueuedTooLong } from "@/server/services/sync.service";
 import { DEFAULT_TIME_ZONE, describeSync } from "@di/core";
 import { SchedulesCard } from "./schedules-card";
 import { formatDateTime, formatNumber, relativeTime } from "@/lib/format";
@@ -24,7 +24,7 @@ export default async function SyncPage() {
   const canRun = hasPermission(user.permissions, "sync:run");
   const [sources, jobs, schedules, worker] = await Promise.all([getSources(), getRecentJobs(), listSchedules(), getWorkerStatus()]);
   const active = jobs.find(isActive);
-  const queuedTooLong = active?.status === "QUEUED" && Date.now() - active.createdAt.getTime() > 15_000;
+  const queuedTooLong = isQueuedTooLong(active);
   const timeZone = process.env.TZ || DEFAULT_TIME_ZONE;
   const scheduleRows = schedules.map((s) => {
     const o = jobOptions(s.options);

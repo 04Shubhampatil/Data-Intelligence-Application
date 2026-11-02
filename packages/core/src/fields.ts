@@ -16,11 +16,26 @@ export const FIELD_DEFS = {
   district: { label: "District", defaultAllowed: true },
   taluka: { label: "Taluka", defaultAllowed: true },
   joiningDate: { label: "Date of joining", defaultAllowed: true },
+  /** The Employee ID printed on the profile card (e.g. E03559) — differs from the profile id in the URL. */
+  officialEmployeeId: { label: "Employee ID (printed on the profile)", defaultAllowed: true },
   sourceStatus: { label: "Status at source", defaultAllowed: true },
   docVerificationStatus: { label: "Document verification (aggregate)", defaultAllowed: true },
   // ⚠ approval-gated — off until the data owner approves
   mobile: { label: "Mobile number", defaultAllowed: false },
   officialEmail: { label: "Official email", defaultAllowed: false },
+  // Profile & employment details (father/husband, DOB, address, education, employment, domicile, nominee…). Stored encrypted.
+  personalDetails: { label: "Profile & employment details (encrypted)", defaultAllowed: false },
+  // Phase 10 — each needs the data owner's approval; sensitive groups are stored encrypted.
+  contactExtra: { label: "WhatsApp & personal email (encrypted)", defaultAllowed: false },
+  identityDetails: { label: "Identity numbers — PAN, Voter ID…, Aadhaar last 4 only (encrypted)", defaultAllowed: false },
+  bankDetails: { label: "Bank details (encrypted)", defaultAllowed: false },
+  epfoDetails: { label: "EPFO / UAN / ESIC (encrypted)", defaultAllowed: false },
+  familyDetails: { label: "Family details (encrypted)", defaultAllowed: false },
+  categoryDetails: { label: "Religion, caste & disability (encrypted)", defaultAllowed: false },
+  salaryDetails: { label: "Previous employers' salary (encrypted)", defaultAllowed: false },
+  officeLocation: { label: "Office location (latitude/longitude)", defaultAllowed: false },
+  attendance: { label: "Attendance (current month)", defaultAllowed: false },
+  tickets: { label: "Support tickets (list only)", defaultAllowed: false },
 } as const;
 
 export type FieldKey = keyof typeof FIELD_DEFS;

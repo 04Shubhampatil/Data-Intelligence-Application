@@ -1,4 +1,5 @@
 import "server-only";
+import { signDocumentUrl } from "@/server/documents/signing";
 import { prisma, type Prisma } from "@di/db";
 import type { CandidateFilters } from "@/lib/validation/candidates";
 import type { CurrentUser } from "@/server/auth/session";
@@ -24,6 +25,7 @@ export function buildCandidateWhere(f: Omit<CandidateFilters, "page" | "pageSize
       OR: [
         { fullName: { contains: f.q } },
         { sourceEmployeeCode: { equals: f.q.toUpperCase() } },
+        { officialEmployeeId: { equals: f.q.replace(/\s+/g, "").toUpperCase() } },
       ],
     });
   }
@@ -61,7 +63,28 @@ export async function listCandidates(filters: CandidateFilters, user: CurrentUse
       take: filters.pageSize,
     }),
   ]);
-  return { total, rows, page: filters.page, pageSize: filters.pageSize, pageCount: Math.max(1, Math.ceil(total / filters.pageSize)) };
+  const photos = await profilePhotoUrls(rows.map((r) => r.id), user);
+  return {
+    total,
+    rows: rows.map((r) => ({ ...r, photoUrl: photos.get(r.id) ?? null })),
+    page: filters.page,
+    pageSize: filters.pageSize,
+    pageCount: Math.max(1, Math.ceil(total / filters.pageSize)),
+  };
+}
+
+/**
+ * Signed, user-bound, short-lived links to the stored profile photos of the given candidates
+ * (one query per page). Only for users with documents:read; the ids come from an already
+ * scope-filtered list, and the photo route re-checks permission and district on every request.
+ */
+export async function profilePhotoUrls(candidateIds: string[], user: CurrentUser): Promise<Map<string, string>> {
+  if (!candidateIds.length || !hasPermission(user.permissions, "documents:read")) return new Map();
+  const docs = await prisma.candidateDocument.findMany({
+    where: { candidateId: { in: candidateIds }, kind: "PROFILE_PHOTO", slot: 0, status: "STORED", storageKey: { not: null } },
+    select: { id: true, candidateId: true },
+  });
+  return new Map(docs.map((d) => [d.candidateId, signDocumentUrl(d.id, user.id, { inline: true })]));
 }
 
 export async function getCandidate(id: string, user: CurrentUser) {

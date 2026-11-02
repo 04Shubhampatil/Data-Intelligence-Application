@@ -11,15 +11,19 @@ import { decideAction } from "@/app/(dashboard)/candidates/[id]/review-actions";
 
 /** Select / Reject straight from the viewer's list. Same server action and rules as the detail page. */
 export function QuickDecision({ candidateId, candidateName, disabled, twoStep }: { candidateId: string; candidateName: string; disabled: boolean; twoStep: boolean }) {
-  const [state, action, pending] = useActionState(decideAction, undefined);
   const [open, setOpen] = useState<"SELECTED" | "REJECTED" | null>(null);
   const [remark, setRemark] = useState("");
-  useEffect(() => {
-    if (state?.ok) {
-      toast.success(state.message);
+  const [state, action, pending] = useActionState(async (prev: Parameters<typeof decideAction>[0], fd: FormData) => {
+    const r = await decideAction(prev, fd);
+    if (r?.ok) {
       setOpen(null);
       setRemark("");
-    } else if (state?.error) toast.error(state.error);
+    }
+    return r;
+  }, undefined);
+  useEffect(() => {
+    if (state?.ok) toast.success(state.message);
+    else if (state?.error) toast.error(state.error);
   }, [state]);
   const needsRemark = open === "REJECTED" && remark.trim().length < 3;
 

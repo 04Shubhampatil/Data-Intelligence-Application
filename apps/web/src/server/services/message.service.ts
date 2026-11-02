@@ -157,8 +157,15 @@ export async function listThreads(user: CurrentUser, opts: { districtId?: string
 /** Full thread with replies and read receipts; marks the viewer's own receipts as read. */
 export async function getThread(threadId: string, user: CurrentUser) {
   if (!hasPermission(user.permissions, "messages:read")) return null;
-  const t = await prisma.districtMessage.findFirst({
-    where: { id: threadId, parentId: null, ...threadAccess(user) },
+  const allowed = await prisma.districtMessage.findFirst({ where: { id: threadId, parentId: null, ...threadAccess(user) }, select: { id: true } });
+  if (!allowed) return null;
+  // Read receipts for the thread and its replies, for this user only — before loading, so the page shows them.
+  await prisma.messageRecipient.updateMany({
+    where: { userId: user.id, readAt: null, OR: [{ messageId: allowed.id }, { message: { parentId: allowed.id } }] },
+    data: { readAt: new Date() },
+  });
+  return prisma.districtMessage.findUnique({
+    where: { id: allowed.id },
     select: {
       id: true, kind: true, subject: true, body: true, createdAt: true,
       district: { select: { id: true, name: true } },
@@ -170,13 +177,6 @@ export async function getThread(threadId: string, user: CurrentUser) {
       },
     },
   });
-  if (!t) return null;
-  // Read receipts for the thread and its replies, for this user only.
-  await prisma.messageRecipient.updateMany({
-    where: { userId: user.id, readAt: null, OR: [{ messageId: t.id }, { message: { parentId: t.id } }] },
-    data: { readAt: new Date() },
-  });
-  return t;
 }
 
 export async function unreadMessageCount(user: Pick<CurrentUser, "id">) {

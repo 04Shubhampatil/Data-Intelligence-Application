@@ -53,6 +53,31 @@ async function resolveProjectOrDepartment(value: string, prefer: "departmentHead
   }
 }
 
+/** Start / end of a calendar day in India time (review dates are asked in local terms). */
+export const istDayStart = (d: string) => new Date(`${d}T00:00:00.000+05:30`);
+export const istDayEnd = (d: string) => new Date(`${d}T23:59:59.999+05:30`);
+
+/**
+ * Reviewer by name or email — only among people who recorded decisions on candidates
+ * the user can see, so the lookup never reveals reviewers from other districts.
+ */
+export async function resolveReviewer(value: string, scope: string[]): Promise<string> {
+  const v = value.trim();
+  const reviewers = await prisma.user.findMany({
+    where: {
+      reviews: { some: { candidate: scope.length ? { districtId: { in: scope } } : {} } },
+      OR: [{ name: { contains: v } }, { email: { contains: v } }],
+    },
+    select: { id: true, name: true, email: true },
+    take: 8,
+    orderBy: { name: "asc" },
+  });
+  const exact = reviewers.filter((r) => r.name?.toLowerCase() === v.toLowerCase() || r.email.toLowerCase() === v.toLowerCase());
+  if (exact.length === 1) return exact[0].id;
+  if (reviewers.length === 1) return reviewers[0].id;
+  throw new FilterResolutionError("reviewer", value, reviewers.map((r) => r.name ?? r.email));
+}
+
 /** Turns name-based AI filters into a Prisma where-clause. Scope (district ids) is always ANDed in. */
 export async function filtersToWhere(f: AiFilters, scope: string[]): Promise<Prisma.CandidateWhereInput> {
   const and: Prisma.CandidateWhereInput[] = [{ isDeletedAtSource: false }];
@@ -66,12 +91,20 @@ export async function filtersToWhere(f: AiFilters, scope: string[]): Promise<Pri
   if (f.gender) and.push({ gender: f.gender });
   if (f.educationType) and.push({ educationType: { contains: f.educationType } });
   if (f.nameContains) and.push({ fullName: { contains: f.nameContains } });
+  if (f.reviewStatus === "AWAITING_CONFIRMATION") and.push({ reviewPendingConfirmation: true });
+  else if (f.reviewStatus) and.push({ reviewStatus: f.reviewStatus });
+  if (f.reviewedFrom || f.reviewedTo) {
+    and.push({ reviewedAt: { ...(f.reviewedFrom ? { gte: istDayStart(f.reviewedFrom) } : {}), ...(f.reviewedTo ? { lte: istDayEnd(f.reviewedTo) } : {}) } });
+  }
+  if (f.reviewedBy) and.push({ reviews: { some: { reviewedById: await resolveReviewer(f.reviewedBy, scope) } } });
   return { AND: and };
 }
+
+const LABELS: Record<string, string> = { nameContains: "name", reviewStatus: "review", reviewedBy: "reviewed by", reviewedFrom: "reviewed from", reviewedTo: "reviewed to" };
 
 export function describeFilters(f: AiFilters): string {
   const parts = Object.entries(f)
     .filter(([, v]) => v)
-    .map(([k, v]) => `${k === "nameContains" ? "name" : k}: ${v}`);
+    .map(([k, v]) => `${LABELS[k] ?? k}: ${k === "reviewStatus" ? String(v).replace("_", " ").toLowerCase() : v}`);
   return parts.length ? parts.join(" · ") : "All records";
 }

@@ -1,4 +1,5 @@
 import type { Page } from "playwright";
+import { gotoWithRetry } from "../../browser/navigate";
 import { AdapterError, type FilterKey, type RawRecord, type SourceFilters } from "../types";
 import { MAHAHRD } from "./config";
 
@@ -28,7 +29,7 @@ export function checkListingContract(meta: { columns: (string | null)[]; ajaxUrl
 }
 
 export async function openListing(page: Page, baseUrl: string) {
-  await page.goto(new URL(MAHAHRD.paths.listing, baseUrl).toString(), { waitUntil: "domcontentloaded" });
+  await gotoWithRetry(page, new URL(MAHAHRD.paths.listing, baseUrl).toString());
   const path = new URL(page.url()).pathname;
   if (!path.startsWith(MAHAHRD.paths.listing)) {
     throw new AdapterError("SESSION_EXPIRED", "Not signed in to the source dashboard (redirected away from the records page). Run the login step again.");
@@ -41,10 +42,12 @@ export async function openListing(page: Page, baseUrl: string) {
         return !!w.jQuery?.fn?.dataTable && w.jQuery(sel).DataTable().ajax.json() != null;
       },
       MAHAHRD.listing.table,
-      { timeout: 30_000 },
+      { timeout: 90_000 },
     )
     .catch(() => {
-      throw new AdapterError("LAYOUT_CHANGED", "Records table did not load.");
+      // Usually a slow connection to the source (its scripts load after the HTML); a real layout
+      // change is caught by checkListingContract once data arrives.
+      throw new AdapterError("SOURCE_ERROR", "Records table did not load within 90 s (slow connection to the source, or the page changed). Try again in a few minutes.");
     });
 
   const meta = await page.evaluate((sel) => {
@@ -81,7 +84,7 @@ export async function fetchListingPage(
         const base = dt.ajax.params() ?? {};
         const data = { ...base, ...(params ?? {}), draw: Number(base.draw ?? 0) + 1, start, length, search_text: searchText ?? "" };
         w.jQuery
-          .ajax({ url: dt.ajax.url(), type: "POST", data, dataType: "json", timeout: 30_000 })
+          .ajax({ url: dt.ajax.url(), type: "POST", data, dataType: "json", timeout: 60_000 })
           .done((json: ListingJson) => resolve(json))
           .fail((xhr: { status: number }) => reject(new Error(`Listing request failed (HTTP ${xhr.status})`)));
       }),

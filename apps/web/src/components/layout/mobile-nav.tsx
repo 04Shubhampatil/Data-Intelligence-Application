@@ -3,29 +3,23 @@
 import { useState } from "react";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import type { NavItem } from "@/lib/rbac";
-import { Brand } from "./brand";
-import { SidebarNav } from "./sidebar-nav";
+import { SidebarContent, type SidebarUser } from "./app-sidebar";
 
-export function MobileNav({ items }: { items: NavItem[] }) {
+/** Hamburger + slide-in navy sidebar on small screens. */
+export function MobileNav({ items, badges, user, showAssistant }: { items: NavItem[]; badges?: Record<string, number>; user: SidebarUser; showAssistant: boolean }) {
   const [open, setOpen] = useState(false);
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button variant="outline" size="icon" className="lg:hidden" aria-label="Open menu">
-          <Menu />
+        <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Open menu">
+          <Menu className="size-5" />
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="w-72 p-4">
-        <SheetHeader className="p-0 pb-4">
-          <SheetTitle asChild>
-            <div>
-              <Brand />
-            </div>
-          </SheetTitle>
-        </SheetHeader>
-        <SidebarNav items={items} onNavigate={() => setOpen(false)} />
+      <SheetContent side="left" className="w-72 border-0 p-0" showCloseButton={false}>
+        <SheetTitle className="sr-only">Navigation</SheetTitle>
+        <SidebarContent items={items} badges={badges} user={user} showAssistant={showAssistant} onNavigate={() => setOpen(false)} />
       </SheetContent>
     </Sheet>
   );

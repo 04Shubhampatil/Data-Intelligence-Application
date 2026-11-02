@@ -11,6 +11,20 @@ loadEnv({ path: path.resolve(process.cwd(), "../../.env"), quiet: true });
 // Every page in this admin app is authenticated and reads live DB data per request,
 // so we use the classic dynamic rendering model instead of Cache Components.
 // See node_modules/next/dist/docs/01-app/02-guides/caching-without-cache-components.md
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "font-src 'self' data:",
+  "connect-src 'self'",
+  "frame-src 'none'",
+  "frame-ancestors 'none'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+].join("; ");
+
 const nextConfig: NextConfig = {
   output: "standalone",
   // Monorepo: include @di/* workspace packages in the standalone server bundle.
@@ -27,7 +41,7 @@ const nextConfig: NextConfig = {
     },
   },
   async headers() {
-    return [
+    const base = [
       {
         source: "/:path*",
         headers: [
@@ -36,6 +50,17 @@ const nextConfig: NextConfig = {
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
         ],
+      },
+    ];
+    // Content-Security-Policy in production only (dev needs eval for React Refresh).
+    // Same-origin everything; Next's inline bootstrap scripts need 'unsafe-inline'.
+    // /api/documents is excluded: it sends its own stricter sandboxed policy per file.
+    if (process.env.NODE_ENV !== "production") return base;
+    return [
+      ...base,
+      {
+        source: "/((?!api/documents).*)",
+        headers: [{ key: "Content-Security-Policy", value: CSP }],
       },
     ];
   },

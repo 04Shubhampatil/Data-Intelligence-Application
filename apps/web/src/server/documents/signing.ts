@@ -17,8 +17,12 @@ function mac(docId: string, userId: string, exp: number, inline: boolean) {
   return createHmac("sha256", key()).update(`${docId}|${userId}|${exp}|${inline ? 1 : 0}`).digest("base64url");
 }
 
+/** Expiry rounded up to a 5-minute boundary: links stay identical for a few minutes (so the browser can reuse a
+ *  cached preview) and are always valid for at least TTL_SECONDS, at most TTL_SECONDS + 5 minutes. */
+const BUCKET_SECONDS = 5 * 60;
+
 export function signDocumentUrl(docId: string, userId: string, opts: { inline?: boolean; now?: number } = {}) {
-  const exp = Math.floor((opts.now ?? Date.now()) / 1000) + TTL_SECONDS;
+  const exp = Math.ceil((Math.floor((opts.now ?? Date.now()) / 1000) + TTL_SECONDS) / BUCKET_SECONDS) * BUCKET_SECONDS;
   const inline = !!opts.inline;
   const s = mac(docId, userId, exp, inline);
   return `/api/documents/${encodeURIComponent(docId)}?e=${exp}&s=${s}${inline ? "&inline=1" : ""}`;

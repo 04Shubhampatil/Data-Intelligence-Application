@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Eye, UsersRound } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { CandidateAvatar } from "@/components/candidate-avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { PageHeader } from "@/components/layout/page-header";
@@ -11,7 +11,7 @@ import { requireUser } from "@/server/auth/session";
 import { listCandidates } from "@/server/services/candidate.service";
 import { getFilterOptions } from "@/server/services/lookup.service";
 import { parseCandidateFilters } from "@/lib/validation/candidates";
-import { formatNumber, initials } from "@/lib/format";
+import { formatNumber } from "@/lib/format";
 import { CandidateFilters } from "./candidate-filters";
 import { ReviewStatusBadge } from "@/components/review-status-badge";
 
@@ -61,7 +61,7 @@ export default async function CandidatesPage({ searchParams }: PageProps<"/candi
           <div className="overflow-x-auto">
             <table className="w-full min-w-[900px] text-sm">
               <thead>
-                <tr className="bg-brand-navy text-left text-xs font-semibold uppercase tracking-wide text-white">
+                <tr className="border-b bg-muted/70 text-left text-xs font-semibold text-foreground">
                   <th className="w-16 px-4 py-3">Sr. No.</th>
                   <th className="px-4 py-3">Name</th>
                   <th className="px-4 py-3">Department / Project</th>
@@ -77,9 +77,7 @@ export default async function CandidatesPage({ searchParams }: PageProps<"/candi
                     <td className="px-4 py-3 tabular-nums text-muted-foreground">{(result.page - 1) * result.pageSize + i + 1}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <Avatar className="size-9">
-                          <AvatarFallback className="bg-accent text-xs font-semibold text-brand-navy">{initials(c.fullName)}</AvatarFallback>
-                        </Avatar>
+                        <CandidateAvatar photoUrl={c.photoUrl} name={c.fullName} />
                         <Stacked top={c.fullName} bottom={c.sourceEmployeeCode} />
                       </div>
                     </td>

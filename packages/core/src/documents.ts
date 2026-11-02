@@ -1,28 +1,41 @@
-/** Document kinds the app knows, their labels, sensitivity and default approval. */
+/** Document kinds the app knows, their labels, category, sensitivity and default approval. */
 export const DOCUMENT_KINDS = [
   "PROFILE_PHOTO", "RESUME", "A_FORM", "SSC_CERTIFICATE", "HSC_CERTIFICATE", "OTHER_CERTIFICATE",
   "AADHAAR_FRONT", "AADHAAR_BACK", "PAN", "BANK_PASSBOOK", "OTHER",
+  "VOTER_ID", "PASSPORT", "DRIVING_LICENCE", "RATION_CARD", "RESIDENCE_PROOF", "EXPERIENCE_LETTER",
 ] as const;
 export type DocumentKind = (typeof DOCUMENT_KINDS)[number];
 
-export const DOCUMENT_DEFS: Record<DocumentKind, { label: string; identity: boolean; defaultAllowed: boolean }> = {
-  PROFILE_PHOTO: { label: "Profile photo", identity: false, defaultAllowed: true },
-  RESUME: { label: "Resume", identity: false, defaultAllowed: true },
-  A_FORM: { label: "A Form", identity: false, defaultAllowed: true },
-  SSC_CERTIFICATE: { label: "SSC certificate", identity: false, defaultAllowed: true },
-  HSC_CERTIFICATE: { label: "HSC certificate", identity: false, defaultAllowed: true },
-  OTHER_CERTIFICATE: { label: "Other certificate", identity: false, defaultAllowed: true },
-  AADHAAR_FRONT: { label: "Aadhaar (front)", identity: true, defaultAllowed: false },
-  AADHAAR_BACK: { label: "Aadhaar (back)", identity: true, defaultAllowed: false },
-  PAN: { label: "PAN card", identity: true, defaultAllowed: false },
-  BANK_PASSBOOK: { label: "Bank passbook", identity: true, defaultAllowed: false },
-  OTHER: { label: "Other document", identity: false, defaultAllowed: false },
+export type DocumentCategory = "photo" | "education" | "employment" | "identity" | "bank" | "other";
+
+/**
+ * identity: needs `documents:read_identity` to view, and is stored ENCRYPTED at rest.
+ * repeatable: the source can hold several files of this kind (stored as slots 0..n).
+ */
+export const DOCUMENT_DEFS: Record<DocumentKind, { label: string; category: DocumentCategory; identity: boolean; defaultAllowed: boolean; repeatable?: boolean }> = {
+  PROFILE_PHOTO: { label: "Profile photo", category: "photo", identity: false, defaultAllowed: true },
+  RESUME: { label: "Resume", category: "employment", identity: false, defaultAllowed: true },
+  A_FORM: { label: "A Form", category: "employment", identity: false, defaultAllowed: true },
+  SSC_CERTIFICATE: { label: "SSC certificate", category: "education", identity: false, defaultAllowed: true },
+  HSC_CERTIFICATE: { label: "HSC certificate", category: "education", identity: false, defaultAllowed: true },
+  OTHER_CERTIFICATE: { label: "Other certificate", category: "education", identity: false, defaultAllowed: true, repeatable: true },
+  EXPERIENCE_LETTER: { label: "Experience letter", category: "employment", identity: false, defaultAllowed: true, repeatable: true },
+  AADHAAR_FRONT: { label: "Aadhaar (front)", category: "identity", identity: true, defaultAllowed: false },
+  AADHAAR_BACK: { label: "Aadhaar (back)", category: "identity", identity: true, defaultAllowed: false },
+  PAN: { label: "PAN card", category: "identity", identity: true, defaultAllowed: false },
+  VOTER_ID: { label: "Voter ID", category: "identity", identity: true, defaultAllowed: false },
+  PASSPORT: { label: "Passport", category: "identity", identity: true, defaultAllowed: false },
+  DRIVING_LICENCE: { label: "Driving licence", category: "identity", identity: true, defaultAllowed: false },
+  RATION_CARD: { label: "Ration card", category: "identity", identity: true, defaultAllowed: false },
+  RESIDENCE_PROOF: { label: "Residence proof", category: "identity", identity: true, defaultAllowed: false },
+  BANK_PASSBOOK: { label: "Bank passbook", category: "bank", identity: true, defaultAllowed: false },
+  OTHER: { label: "Other document", category: "other", identity: false, defaultAllowed: false },
 };
 
 export const isDocumentKind = (v: unknown): v is DocumentKind => typeof v === "string" && (DOCUMENT_KINDS as readonly string[]).includes(v);
 
-/** Allowed file types and size for anything we copy from the source. */
-export const DOCUMENT_MAX_BYTES = 15 * 1024 * 1024;
+/** Allowed file types and size for anything we copy from the source. Size is configurable (DOCUMENT_MAX_MB, default 15). */
+export const DOCUMENT_MAX_BYTES = Math.max(1, Math.min(100, Number(process.env.DOCUMENT_MAX_MB) || 15)) * 1024 * 1024;
 export const DOCUMENT_MIME_EXT: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "application/pdf": "pdf" };
 
 /** Detects the real type from magic bytes — headers from the source are not trusted. */

@@ -33,7 +33,7 @@ function useToast(state: RetentionState) {
   }, [state]);
 }
 
-export function RetentionPanel({ settings, lastCleanup, suppressed, backups, backupDir, canWrite }: { settings: Settings; lastCleanup: LastCleanup; suppressed: Suppressed[]; backups: Backup[]; backupDir: string; canWrite: boolean }) {
+export function RetentionPanel({ settings, lastCleanup, suppressed, backups, backupDir, backupAgeH, canWrite }: { settings: Settings; lastCleanup: LastCleanup; suppressed: Suppressed[]; backups: Backup[]; backupDir: string; backupAgeH: number | null; canWrite: boolean }) {
   const [saveState, saveAction, saving] = useActionState(saveRetentionAction, undefined);
   const [eraseState, eraseAction, erasing] = useActionState(eraseCandidateAction, undefined);
   const [cleanupPending, startCleanup] = useTransition();
@@ -41,7 +41,6 @@ export function RetentionPanel({ settings, lastCleanup, suppressed, backups, bac
   useToast(eraseState);
 
   const latest = backups[0];
-  const backupAgeH = latest ? (Date.now() - latest.modifiedAt.getTime()) / 3_600_000 : null;
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">

@@ -16,10 +16,10 @@ describe("buildCandidateWhere", () => {
     expect(where.AND).toContainEqual({ districtId: "d_other" }); // AND → empty result, never a scope bypass
   });
 
-  it("searches name (contains) or exact employee code", () => {
-    const where = buildCandidateWhere({ q: "e8685" }, []);
+  it("searches name (contains), exact profile code, or the printed Employee ID", () => {
+    const where = buildCandidateWhere({ q: "e03559" }, []);
     expect(where.AND).toContainEqual({
-      OR: [{ fullName: { contains: "e8685" } }, { sourceEmployeeCode: { equals: "E8685" } }],
+      OR: [{ fullName: { contains: "e03559" } }, { sourceEmployeeCode: { equals: "E03559" } }, { officialEmployeeId: { equals: "E03559" } }],
     });
   });
 

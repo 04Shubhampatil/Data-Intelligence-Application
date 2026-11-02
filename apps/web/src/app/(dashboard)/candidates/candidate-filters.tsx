@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Loader2, RotateCcw, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -57,9 +57,14 @@ export function CandidateFilters({ options }: { options: FilterOptions }) {
   const pathname = usePathname();
   const params = useSearchParams();
   const [pending, startTransition] = useTransition();
-  const [q, setQ] = useState(params.get("q") ?? "");
-
-  useEffect(() => setQ(params.get("q") ?? ""), [params]);
+  const urlQ = params.get("q") ?? "";
+  const [q, setQ] = useState(urlQ);
+  const [lastUrlQ, setLastUrlQ] = useState(urlQ);
+  if (urlQ !== lastUrlQ) {
+    // The URL changed (back/forward, reset): show its search text.
+    setLastUrlQ(urlQ);
+    setQ(urlQ);
+  }
 
   function push(next: URLSearchParams) {
     next.delete("page");

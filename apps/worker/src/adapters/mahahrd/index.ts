@@ -1,8 +1,11 @@
 import type { Page } from "playwright";
 import { AdapterError, type ProfileRead, type SourceAdapter } from "../types";
 import { MAHAHRD } from "./config";
+import { gotoWithRetry } from "../../browser/navigate";
 import { fetchListingPage, filterParams, mapListingRow, openListing, readFilterOptions } from "./listing";
-import { parseProfileDocuments, parseProfileHtml } from "./profile";
+import { parseProfileDocuments, parseProfileHtml, parseProfilePersonal } from "./profile";
+import { parseOfficeLocation, parseProfileSensitive } from "./sensitive";
+import { fetchAttendance, fetchTickets } from "./extras";
 
 export const mahahrdAdapter: SourceAdapter = {
   key: "mahahrd",
@@ -45,19 +48,30 @@ export const mahahrdAdapter: SourceAdapter = {
     return { total: Number(json.recordsFiltered ?? json.recordsTotal ?? 0), rows: json.data.map(mapListingRow) };
   },
 
-  profileFields: ["taluka", "joiningDate", "sourceStatus", "docVerificationStatus", "officialEmail"],
+  profileFields: [
+    "taluka", "joiningDate", "officialEmployeeId", "sourceStatus", "docVerificationStatus", "officialEmail", "personalDetails",
+    "contactExtra", "identityDetails", "bankDetails", "epfoDetails", "familyDetails", "categoryDetails", "salaryDetails", "officeLocation",
+  ],
 
   documentHosts: MAHAHRD.documents.hosts,
+  fetchAttendance,
+  fetchTickets,
 
   async readProfile(page, baseUrl, code): Promise<ProfileRead> {
     if (!/^E\d{1,10}$/.test(code)) throw new AdapterError("SOURCE_ERROR", "Refusing to open a profile for a malformed code.");
-    await page.goto(new URL(MAHAHRD.paths.profile(code), baseUrl).toString(), { waitUntil: "domcontentloaded" });
+    await gotoWithRetry(page, new URL(MAHAHRD.paths.profile(code), baseUrl).toString());
     if (!new URL(page.url()).pathname.startsWith("/employee-profile/")) {
       throw new AdapterError("SESSION_EXPIRED", "Redirected away from the profile page — session may have expired.");
     }
     const html = await page.content();
     const { _docStatuses, ...fields } = parseProfileHtml(html);
     void _docStatuses;
-    return { record: fields, documents: parseProfileDocuments(html) };
+    return {
+      record: fields,
+      documents: parseProfileDocuments(html),
+      personal: parseProfilePersonal(html),
+      sensitive: parseProfileSensitive(html),
+      officeLocation: parseOfficeLocation(html),
+    };
   },
 };

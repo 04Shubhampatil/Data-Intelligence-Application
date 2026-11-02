@@ -21,6 +21,8 @@ export type UserRow = {
   lastLoginAt: Date | null;
   role: string;
   lockedUntil: Date | null;
+  /** Computed on the server at request time (lockedUntil in the future). */
+  isLocked: boolean;
   districts: { id: string; name: string }[];
 };
 type Option = { id: string; name: string };
@@ -119,7 +121,7 @@ function UserRowItem({ u, isSelf, districts, roleOptions }: { u: UserRow; isSelf
   const [pending, start] = useTransition();
   const [panel, setPanel] = useState<"none" | "password" | "districts">("none");
   const [draft, setDraft] = useState<string[]>(u.districts.map((d) => d.id));
-  const locked = u.lockedUntil && u.lockedUntil.getTime() > Date.now();
+  const locked = u.isLocked;
   const editable = !isSelf && u.role !== "SUPER_ADMIN" && roleOptions.some((r) => r.value === u.role);
   const mode = ROLE_OPTIONS.find((r) => r.value === u.role)?.districts ?? "optional";
 

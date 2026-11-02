@@ -45,6 +45,8 @@
   --color-brand-navy: var(--brand-navy);
   --color-brand-teal: var(--brand-teal);
   --color-brand-orange: var(--brand-orange);
+  --color-brand-blue: var(--brand-blue);
+  --shadow-card: var(--app-shadow-card);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -54,50 +56,53 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* Brand palette taken from the reference dashboard (MahaHRD):
-   navy table headers #123F6B, primary buttons #14597D,
-   green export button #0F842C, Manrope type, 16px card radius. */
+/* Theme 2026-11-01: deep-navy sidebar, royal-blue accent, light blue-grey canvas,
+   white rounded cards with soft shadows. Chart colours validated for colour-vision
+   deficiency (dataviz validator): blue #2563EB, green #0E7C3A, rose #F28B82. */
 :root {
-  --brand-navy: #123f6b;
-  --brand-teal: #14597d;
-  --brand-green: #0f842c;
+  --brand-navy: #0b1f4d;
+  --brand-teal: #1d4ed8;
+  --brand-green: #0e7c3a;
   --brand-orange: #f08a24;
+  --brand-blue: #2563eb;
 
-  --background: #f4f6f9;
-  --foreground: #1f2933;
+  --background: #f3f6fb;
+  --foreground: #0f1b33;
   --card: #ffffff;
-  --card-foreground: #1f2933;
+  --card-foreground: #0f1b33;
   --popover: #ffffff;
-  --popover-foreground: #1f2933;
-  --primary: var(--brand-teal);
+  --popover-foreground: #0f1b33;
+  --primary: var(--brand-blue);
   --primary-foreground: #ffffff;
-  --secondary: #e8eef4;
-  --secondary-foreground: var(--brand-navy);
-  --muted: #eef1f5;
-  --muted-foreground: #5f6b7a;
-  --accent: #e6f0f6;
-  --accent-foreground: var(--brand-navy);
-  --destructive: oklch(0.577 0.245 27.325);
+  --secondary: #eef3fb;
+  --secondary-foreground: #1e3a8a;
+  --muted: #f1f4f9;
+  --muted-foreground: #5b6779;
+  --accent: #eaf1ff;
+  --accent-foreground: #1e40af;
+  --destructive: #dc2626;
   --success: var(--brand-green);
   --success-foreground: #ffffff;
   --warning: var(--brand-orange);
-  --border: #dfe4ea;
-  --input: #d5dbe2;
-  --ring: #5b9bbd;
-  --chart-1: #123f6b;
-  --chart-2: #2f8fbf;
-  --chart-3: #f08a24;
-  --chart-4: #0f842c;
-  --chart-5: #8a94a3;
-  --radius: 0.75rem;
-  --sidebar: #ffffff;
-  --sidebar-foreground: #3d4a59;
-  --sidebar-primary: var(--brand-navy);
+  --border: #e5eaf2;
+  --input: #d9e0ea;
+  --ring: #93b4f5;
+  --chart-1: #2563eb;
+  --chart-2: #0e7c3a;
+  --chart-3: #f28b82;
+  --chart-4: #f08a24;
+  --chart-5: #94a3b8;
+  --radius: 0.875rem;
+  --app-shadow-card: 0 1px 2px rgb(15 27 51 / 0.04), 0 8px 24px -12px rgb(15 27 51 / 0.12);
+  /* Sidebar: deep navy */
+  --sidebar: #0a1a3f;
+  --sidebar-foreground: rgb(255 255 255 / 0.78);
+  --sidebar-primary: var(--brand-blue);
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #e6f0f6;
-  --sidebar-accent-foreground: var(--brand-navy);
-  --sidebar-border: #e3e8ee;
-  --sidebar-ring: #5b9bbd;
+  --sidebar-accent: rgb(255 255 255 / 0.08);
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgb(255 255 255 / 0.08);
+  --sidebar-ring: #93b4f5;
 }
 
 .dark {

@@ -1,8 +1,9 @@
 import "../env";
-import { syncOptionsSchema } from "@di/core";
+import { STALE_JOB_MS, syncOptionsSchema } from "@di/core";
 import { prisma } from "@di/db";
 import { enqueueJob } from "../jobs/queue";
 import { runSyncJob } from "../jobs/run-sync";
+import { candidatesWithRetryableDocuments } from "../pipeline/documents";
 import { getSourceConnection } from "./source";
 
 /**
@@ -11,6 +12,8 @@ import { getSourceConnection } from "./source";
  *   npm run source:sync -- district BULDHANA max 50   # trial cap
  *   npm run source:sync -- all                        # everything
  *   npm run source:sync -- resume <jobId>             # continue an interrupted job
+ *   npm run source:sync -- codes E8790 E3559           # re-read specific employees (every section)
+ *   npm run source:sync -- retry-documents             # re-read employees whose document downloads are due for a retry
  * Add "list-only" to skip profile pages, or "refresh-profiles" to re-read profiles (and documents) even if read recently.
  */
 const args = process.argv.slice(2);
@@ -21,6 +24,39 @@ const after = (k: string) => {
 
 const conn = await getSourceConnection();
 let jobId = after("resume");
+
+if (jobId) {
+  // Never run a second copy of a job that is still alive (another terminal, the worker daemon):
+  // two runners would double the load on the source and overwrite each other's checkpoint.
+  const live = await prisma.syncJob.findUnique({ where: { id: jobId }, select: { status: true, heartbeatAt: true, processed: true, totalRecords: true } });
+  if (!live) {
+    console.error(`No sync job ${jobId}.`);
+    process.exit(2);
+  }
+  const fresh = live.heartbeatAt && Date.now() - live.heartbeatAt.getTime() < STALE_JOB_MS;
+  if (live.status === "RUNNING" && fresh) {
+    console.error(
+      `Job ${jobId} is still running (${live.processed}/${live.totalRecords}, last heartbeat ${Math.round((Date.now() - live.heartbeatAt!.getTime()) / 1000)} s ago). Nothing to resume.\n` +
+        `Watch it on the Data Synchronization page. Resume only after it stops (paused, failed, or no heartbeat for ${STALE_JOB_MS / 60_000} minutes).`,
+    );
+    process.exit(1);
+  }
+}
+
+if (!jobId && (args.includes("retry-documents") || args.includes("codes"))) {
+  // Re-read specific employees (all their sections + documents), or every employee with a
+  // document download that failed transiently and is due for another try.
+  const codes = args.includes("retry-documents")
+    ? await candidatesWithRetryableDocuments(conn.id)
+    : args.slice(args.indexOf("codes") + 1).filter((a) => /^E\d{1,10}$/i.test(a)).map((a) => a.toUpperCase());
+  if (!codes.length) {
+    console.log(args.includes("retry-documents") ? "No document downloads are due for a retry." : "Give employee codes after \"codes\", e.g. codes E8790 E3559");
+    process.exit(0);
+  }
+  const options = syncOptionsSchema.parse({ kind: "retry", codes, includeProfiles: true, profileMaxAgeDays: 0 });
+  jobId = (await enqueueJob(conn.id, options, { claimNow: true })).id;
+  console.log(`Re-reading ${codes.length} employee(s)…`);
+}
 
 if (!jobId) {
   const districtName = after("district")?.toUpperCase();

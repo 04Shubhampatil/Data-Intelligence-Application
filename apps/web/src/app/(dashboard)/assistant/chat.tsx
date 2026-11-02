@@ -211,7 +211,7 @@ function ResultTable({ table: t }: { table: Table }) {
       ) : (
         <div className="max-h-96 overflow-auto">
           <table className="w-full text-sm">
-            <thead className="sticky top-0 bg-brand-navy text-left text-[11px] uppercase tracking-wide text-white">
+            <thead className="sticky top-0 border-b bg-muted text-left text-[11px] font-semibold text-foreground">
               <tr>
                 {t.columns.map((c) => (
                   <th key={c.key} className="whitespace-nowrap px-3 py-2 font-semibold">{c.label}</th>

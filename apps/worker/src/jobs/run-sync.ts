@@ -4,6 +4,7 @@ import { prisma, type SyncStatus } from "@di/db";
 import { getAdapter } from "../adapters";
 import { AdapterError, type FilterKey, type SourceAdapter } from "../adapters/types";
 import { installGuard } from "../browser/guard";
+import { keepAwake } from "../browser/keep-awake";
 import { launchBrowser } from "../browser/launch";
 import { loadSession, saveSession } from "../browser/session";
 import { loadAllowedDocumentKinds, loadAllowedFields } from "../pipeline/field-policy";
@@ -11,6 +12,67 @@ import type { Downloader } from "../pipeline/documents";
 import { emptyCounters, processRecord, type Counters, type RecordContext } from "./process-record";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Employees read at the same time during a listing run (each on its own profile tab, each paced by
+ * the source's rate limit). 3 by default; SYNC_PROFILE_CONCURRENCY=1 restores one-at-a-time; max 4.
+ */
+export function profileConcurrency(env = process.env.SYNC_PROFILE_CONCURRENCY): number {
+  const n = Number(env ?? 3);
+  return Number.isInteger(n) && n >= 1 ? Math.min(n, 4) : 3;
+}
+
+/** A listing request that dropped (no response, server error, rate limit) rather than a real failure. */
+export function isTransientListingError(err: unknown): boolean {
+  const m = err instanceof Error ? err.message : String(err);
+  return /HTTP (0|429|5\d\d)\b|Failed to fetch|net::ERR_|timed? ?out|ECONNRESET|socket hang up/i.test(m);
+}
+
+/**
+ * Retries fn on transient errors with growing pauses (default 5 s, 20 s, 60 s), so one network
+ * blip on the listing no longer fails a many-hour job. Other errors are thrown at once.
+ */
+export async function retryTransient<T>(
+  fn: () => Promise<T>,
+  opts: { delaysMs?: number[]; isTransient?: (e: unknown) => boolean; sleep?: (ms: number) => Promise<unknown>; log?: (m: string) => void; label?: string } = {},
+): Promise<T> {
+  const delays = opts.delaysMs ?? [5_000, 20_000, 60_000];
+  const transient = opts.isTransient ?? isTransientListingError;
+  const wait = opts.sleep ?? sleep;
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (attempt >= delays.length || !transient(err)) throw err;
+      opts.log?.(`${opts.label ?? "request"} failed (${err instanceof Error ? err.message.split("\n")[0].slice(0, 120) : "error"}); retrying in ${Math.round(delays[attempt] / 1000)} s`);
+      await wait(delays[attempt]);
+    }
+  }
+}
+
+/**
+ * Runs fn over items with up to `workers` in flight. Stops handing out new items once shouldStop()
+ * is true or any item throws; waits for the in-flight ones, then rethrows the first error.
+ */
+export async function runPool<T>(items: readonly T[], workers: number, fn: (item: T, worker: number) => Promise<void>, shouldStop: () => boolean = () => false): Promise<void> {
+  let next = 0;
+  let failed = false;
+  let firstError: unknown;
+  await Promise.all(
+    Array.from({ length: Math.max(1, Math.min(workers, items.length)) }, async (_, w) => {
+      while (!failed && !shouldStop() && next < items.length) {
+        const item = items[next++];
+        try {
+          await fn(item, w);
+        } catch (e) {
+          if (!failed) firstError = e;
+          failed = true;
+        }
+      }
+    }),
+  );
+  if (failed) throw firstError;
+}
 /** Resume point. Counters are snapshotted with it so a resumed run never double-counts the page it was on. */
 type Checkpoint = { start: number; counters?: Counters };
 
@@ -58,12 +120,24 @@ export async function runSyncJob(jobId: string, log: RunLog = console.log): Prom
     return finish("AWAITING_MFA");
   }
 
+  const releaseAwake = keepAwake(log);
   const browser = await launchBrowser({ headless: true });
   try {
     const context = await browser.newContext({ storageState: session });
     const guard = await installGuard(context, adapter.guardPolicy(conn.baseUrl));
     const page = await context.newPage();
-    const profilePage = await context.newPage(); // keep the listing page (and its DataTables state) intact
+    // One profile tab per parallel reader; the listing page (and its DataTables state) stays intact.
+    const readers = isListingRun && options.includeProfiles ? profileConcurrency() : 1;
+    const profilePages: Page[] = [];
+    for (let i = 0; i < readers; i++) {
+      const p = await context.newPage();
+      // Profile pages pull ~100 images, map tiles and fonts the parser never needs (it reads image
+      // addresses from the HTML; documents are downloaded separately). Skipping them makes each
+      // profile much faster and lighter on the source. Scripts still run (the ticket table needs them).
+      await p.route("**/*", (route) => (["image", "media", "font"].includes(route.request().resourceType()) ? route.abort() : route.fallback()));
+      profilePages.push(p);
+    }
+    if (readers > 1) log(`reading ${readers} employees at a time`);
 
     await adapter.openListing(page, conn.baseUrl);
     const sourceFilters = await adapter.readFilterOptions(page);
@@ -82,7 +156,7 @@ export async function runSyncJob(jobId: string, log: RunLog = console.log): Prom
       return { status: res.status(), bytes: new Uint8Array(await res.body()) };
     };
 
-    const ctx: RecordContext = {
+    const makeCtx = (profilePage: Page): RecordContext => ({
       sourceConnectionId: conn.id,
       suppressed,
       allowedDocuments,
@@ -96,7 +170,23 @@ export async function runSyncJob(jobId: string, log: RunLog = console.log): Prom
         await sleep(conn.rateLimitMs);
         return adapter.readProfile(profilePage, conn.baseUrl, code);
       },
-    };
+      fetchExtras: async (code, want) => {
+        // Runs on the profile page fetchProfile just opened (same origin + session), paced like other requests.
+        const today = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+        const out: { attendance?: Awaited<ReturnType<NonNullable<typeof adapter.fetchAttendance>>>; tickets?: Awaited<ReturnType<NonNullable<typeof adapter.fetchTickets>>> } = {};
+        if (want.attendance && adapter.fetchAttendance) {
+          await sleep(Math.min(conn.rateLimitMs, 1000));
+          out.attendance = await adapter.fetchAttendance(profilePage, code, today.getFullYear(), today.getMonth() + 1);
+        }
+        if (want.tickets && adapter.fetchTickets) {
+          await sleep(Math.min(conn.rateLimitMs, 1000));
+          out.tickets = await adapter.fetchTickets(profilePage, code);
+        }
+        return out;
+      },
+    });
+    const ctxs = profilePages.map(makeCtx);
+    const ctx = ctxs[0];
 
     const heartbeat = async (checkpoint?: Checkpoint) => {
       const fresh = await prisma.syncJob.update({
@@ -132,7 +222,7 @@ export async function runSyncJob(jobId: string, log: RunLog = console.log): Prom
       }
       if (!cancelled) await resolveRetriedErrors(job.retryOfJobId, jobId);
     } else {
-      cancelled = await runListing(page, adapter, ctx, options, counters, checkpoint ?? { start: 0 }, conn.rateLimitMs, jobId, heartbeat, log);
+      cancelled = await runListing(page, adapter, ctxs, options, counters, checkpoint ?? { start: 0 }, conn.rateLimitMs, jobId, heartbeat, log);
       completedAll = !cancelled;
     }
 
@@ -161,6 +251,7 @@ export async function runSyncJob(jobId: string, log: RunLog = console.log): Prom
     return finish("FAILED");
   } finally {
     await browser.close();
+    releaseAwake();
   }
 }
 
@@ -168,7 +259,7 @@ export async function runSyncJob(jobId: string, log: RunLog = console.log): Prom
 async function runListing(
   page: Page,
   adapter: SourceAdapter,
-  ctx: RecordContext,
+  ctxs: RecordContext[],
   options: SyncOptions,
   counters: Counters,
   checkpoint: Checkpoint,
@@ -187,10 +278,11 @@ async function runListing(
   const cap = options.maxRecords || Infinity;
 
   while (start < total && start < cap) {
-    if (await heartbeat({ start })) return true;
+    // Keep the counters in the checkpoint (they match this page boundary), or a resume restarts the count.
+    if (await heartbeat({ start, counters: { ...counters } })) return true;
     await sleep(rateLimitMs);
     const length = Math.min(size, cap - start);
-    const fetched = await adapter.fetchPage(page, { start, length, filters });
+    const fetched = await retryTransient(() => adapter.fetchPage(page, { start, length, filters }), { log, label: `listing page at ${start}` });
     const t = fetched.total;
     // The source may ignore small page sizes and return more rows than asked — enforce the cap ourselves.
     const rows = fetched.rows.slice(0, Math.max(0, Math.min(length, cap - start)));
@@ -200,11 +292,24 @@ async function runListing(
       log(`listing reports ${t} record(s)${Number.isFinite(cap) ? `, capped at ${cap}` : ""}`);
     }
     if (!rows.length) break;
-    for (const row of rows) {
-      await processRecord(ctx, row, counters);
-      // Check for cancel/heartbeat every 10 records while reading profiles (they're slow).
-      if (options.includeProfiles && counters.processed % 10 === 0 && (await heartbeat())) return true;
-    }
+    // Several employees at once, one per profile tab. The checkpoint only moves after the whole page
+    // is done, so a pause or cancel mid-page re-reads that page on resume (records are idempotent).
+    let cancelled = false;
+    let lastBeat = counters.processed;
+    await runPool(
+      rows,
+      ctxs.length,
+      async (row, w) => {
+        await processRecord(ctxs[w], row, counters);
+        // Check for cancel/heartbeat every 10 records while reading profiles (they're slow).
+        if (options.includeProfiles && counters.processed - lastBeat >= 10) {
+          lastBeat = counters.processed;
+          if (await heartbeat()) cancelled = true;
+        }
+      },
+      () => cancelled,
+    );
+    if (cancelled) return true;
     start += rows.length;
     await heartbeat({ start, counters: { ...counters } });
     log(`… ${Math.min(start, total)} / ${Math.min(total, cap)}`);

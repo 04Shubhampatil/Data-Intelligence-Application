@@ -200,6 +200,12 @@ model Candidate {
 
   contentHash       String
   profileSyncedAt   DateTime? // last time profile-page fields were read
+  /// Employee ID printed on the source profile card (e.g. E03559); differs from sourceEmployeeCode (the profile id)
+  officialEmployeeId String?  @db.VarChar(20)
+  /// Per-employee sync status (Phase 10)
+  documentsSyncedAt  DateTime?
+  attendanceSyncedAt DateTime?
+  ticketsSyncedAt    DateTime?
   firstSeenAt       DateTime @default(now())
   lastSyncedAt      DateTime
   isDeletedAtSource Boolean  @default(false)
@@ -215,10 +221,14 @@ model Candidate {
   profile     CandidateProfile?
   syncRecords SyncRecord[]
   documents   CandidateDocument[]
+  sensitive   CandidateSensitiveData[]
+  attendance  CandidateAttendanceMonth[]
+  tickets     CandidateTicket[]
   reviews     CandidateReview[]
   comments    CandidateComment[]
 
   @@unique([sourceConnectionId, sourceEmployeeCode])
+  @@index([officialEmployeeId])
   @@index([districtId])
   @@index([departmentHeadId])
   @@index([departmentId])
@@ -235,7 +245,72 @@ model CandidateProfile {
   candidate     Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
   mobile        String?
   officialEmail String?
+  /// Profile & employment details: AES-256-GCM JSON (see packages/core/src/personal.ts). Never plaintext.
+  personalEncrypted String?   @db.Text
+  personalHash      String?   @db.VarChar(64)
+  personalSyncedAt  DateTime?
+  /// Work location shown on the source profile map (office, not home)
+  officeLat         Float?
+  officeLng         Float?
   updatedAt     DateTime  @updatedAt
+}
+
+/// Sensitive profile groups (identity, bank, epfo, family, category, salary, contact) — one
+/// AES-256-GCM JSON blob per group, bound to the candidate id. Each group has its own field
+/// approval, view permission and can be cleared independently. Never plaintext.
+model CandidateSensitiveData {
+  id          String    @id @default(cuid())
+  candidateId String
+  candidate   Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  group       String    @db.VarChar(30)
+  encrypted   String    @db.Text
+  hash        String    @db.VarChar(64)
+  syncedAt    DateTime
+
+  @@unique([candidateId, group])
+}
+
+/// Monthly attendance summary + per-day rows from the source calendar (POST /get_attendance).
+model CandidateAttendanceMonth {
+  id            String    @id @default(cuid())
+  candidateId   String
+  candidate     Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  year          Int
+  month         Int // 1–12
+  present       Int       @default(0)
+  absent        Int       @default(0)
+  halfDay       Int       @default(0)
+  lateMark      Int       @default(0)
+  weeklyOff     Int       @default(0)
+  holiday       Int       @default(0)
+  attendanceOut Int       @default(0)
+  workingDays   Int       @default(0)
+  daysInMonth   Int       @default(0)
+  days          Json // [{ date, type, login, logout }]
+  syncedAt      DateTime
+
+  @@unique([candidateId, year, month])
+  @@index([year, month])
+}
+
+/// Employee support tickets (POST /get_tickets, list only — details are not opened).
+model CandidateTicket {
+  id             String    @id @default(cuid())
+  candidateId    String
+  candidate      Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  sourceTicketId String    @db.VarChar(40)
+  ticketNumber   String?   @db.VarChar(60)
+  type           String?   @db.VarChar(100)
+  subject        String?   @db.VarChar(300)
+  priority       String?   @db.VarChar(30)
+  status         String?   @db.VarChar(30)
+  feedback       String?   @db.Text
+  attachmentRef  String?   @db.Text
+  firstSeenAt    DateTime  @default(now())
+  syncedAt       DateTime
+
+  @@unique([candidateId, sourceTicketId])
+  @@index([status])
 }
 
 // ───────────── Documents (Phase 9.3) ─────────────
@@ -252,6 +327,13 @@ enum DocumentKind {
   PAN
   BANK_PASSBOOK
   OTHER
+  // Phase 10
+  VOTER_ID
+  PASSPORT
+  DRIVING_LICENCE
+  RATION_CARD
+  RESIDENCE_PROOF
+  EXPERIENCE_LETTER
 }
 
 enum DocumentStatus {
@@ -279,9 +361,20 @@ model CandidateDocument {
   error        String?
   extractedAt  DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
+  /// Phase 10: several files of one kind (other certificates, experience letters) → slot 0..n
+  slot               Int       @default(0)
+  /// Verification label shown at the source (Verified / Rejected / Pending), if any
+  sourceVerification String?   @db.VarChar(30)
+  /// Identity and bank documents are stored AES-256-GCM encrypted
+  encrypted          Boolean   @default(false)
+  /// Transient download failures: retried with backoff up to 3 attempts
+  attempts           Int       @default(0)
+  nextRetryAt        DateTime?
+  lastSyncedAt       DateTime?
 
-  @@unique([candidateId, kind])
+  @@unique([candidateId, kind, slot])
   @@index([candidateId])
+  @@index([status, nextRetryAt])
 }
 
 /// Which document kinds may be fetched from a source. Everything is off unless switched on.

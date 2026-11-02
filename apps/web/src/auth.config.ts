@@ -24,6 +24,8 @@ export const authConfig = {
       if (isPublicPath(pathname)) {
         return signedIn ? Response.redirect(new URL("/", request.nextUrl)) : true;
       }
+      // API callers get a JSON 401, not a redirect to the HTML login page.
+      if (!signedIn && pathname.startsWith("/api/")) return Response.json({ error: "Unauthorized" }, { status: 401 });
       return signedIn; // false → redirect to pages.signIn with callbackUrl
     },
     jwt({ token, user }) {

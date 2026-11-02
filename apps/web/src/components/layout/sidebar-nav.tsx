@@ -18,13 +18,15 @@ const ICONS: Record<string, LucideIcon> = {
   "clipboard-check": ClipboardCheck,
 };
 
-export function SidebarNav({ items, onNavigate }: { items: NavItem[]; onNavigate?: () => void }) {
+/** Navigation for the navy sidebar. `badges` maps an href to an unread count (e.g. /messages). */
+export function SidebarNav({ items, onNavigate, badges = {} }: { items: NavItem[]; onNavigate?: () => void; badges?: Record<string, number> }) {
   const pathname = usePathname();
   return (
-    <nav className="flex flex-col gap-1">
+    <nav className="flex flex-col gap-1" aria-label="Main">
       {items.map((item) => {
         const Icon = ICONS[item.icon] ?? LayoutDashboard;
         const active = item.href === "/" ? pathname === "/" : pathname === item.href || pathname.startsWith(`${item.href}/`);
+        const badge = badges[item.href] ?? 0;
         return (
           <Link
             key={item.href}
@@ -32,14 +34,19 @@ export function SidebarNav({ items, onNavigate }: { items: NavItem[]; onNavigate
             onClick={onNavigate}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+              "flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition-colors",
               active
-                ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
+                ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-md shadow-blue-950/40"
                 : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
             )}
           >
             <Icon className="size-4.5 shrink-0" />
-            {item.label}
+            <span className="flex-1">{item.label}</span>
+            {badge > 0 && (
+              <span className="grid h-5 min-w-5 place-items-center rounded-full bg-red-500 px-1.5 text-[11px] font-bold text-white" aria-label={`${badge} unread`}>
+                {badge > 99 ? "99+" : badge}
+              </span>
+            )}
           </Link>
         );
       })}

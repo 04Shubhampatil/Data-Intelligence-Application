@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma, type Prisma } from "@di/db";
 import type { CurrentUser } from "@/server/auth/session";
 import { candidateScope, isScoped } from "@/server/auth/scope";
-import { buildCandidateWhere } from "./candidate.service";
+import { buildCandidateWhere, profilePhotoUrls } from "./candidate.service";
 
 const id = z.string().trim().max(40).regex(/^[a-z0-9]+$/i);
 const opt = <T extends z.ZodTypeAny>(s: T) => z.preprocess((v) => (v === "" || v === "all" ? undefined : v), s.optional());
@@ -39,8 +39,8 @@ function reviewWhere(f: ReviewTableFilters, user: CurrentUser): Prisma.Candidate
   if (f.reviewerId || f.from || f.to) {
     // Filter on the candidate's latest decision.
     const reviewedAt: Prisma.DateTimeNullableFilter = {};
-    if (f.from) reviewedAt.gte = new Date(`${f.from}T00:00:00.000Z`);
-    if (f.to) reviewedAt.lte = new Date(`${f.to}T23:59:59.999Z`);
+    if (f.from) reviewedAt.gte = new Date(`${f.from}T00:00:00.000+05:30`);
+    if (f.to) reviewedAt.lte = new Date(`${f.to}T23:59:59.999+05:30`);
     if (f.from || f.to) and.push({ reviewedAt });
     if (f.reviewerId) and.push({ reviews: { some: { reviewedById: f.reviewerId } } });
   }
@@ -106,7 +106,8 @@ export async function getReviewTable(f: ReviewTableFilters, user: CurrentUser) {
       },
     }),
   ]);
-  return { total, rows, page: f.page, pageSize: PAGE, pageCount: Math.max(1, Math.ceil(total / PAGE)) };
+  const photos = await profilePhotoUrls(rows.map((r) => r.id), user);
+  return { total, rows: rows.map((r) => ({ ...r, photoUrl: photos.get(r.id) ?? null })), page: f.page, pageSize: PAGE, pageCount: Math.max(1, Math.ceil(total / PAGE)) };
 }
 
 /** Latest decisions and comments across the scope (activity feed). */
@@ -153,5 +154,6 @@ export async function getViewerQueue(user: CurrentUser, status: "PENDING_REVIEW"
       },
     }),
   ]);
-  return { total, rows, page, pageSize: PAGE, pageCount: Math.max(1, Math.ceil(total / PAGE)) };
+  const photos = await profilePhotoUrls(rows.map((r) => r.id), user);
+  return { total, rows: rows.map((r) => ({ ...r, photoUrl: photos.get(r.id) ?? null })), page, pageSize: PAGE, pageCount: Math.max(1, Math.ceil(total / PAGE)) };
 }

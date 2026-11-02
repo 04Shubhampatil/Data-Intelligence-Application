@@ -1,5 +1,7 @@
 # Production deployment — Hostinger Linux VPS
 
+> **Status:** prepared, **not deployed**. These are the steps for when you decide to go live; nothing in this repository deploys by itself.
+
 Target: one Ubuntu 22.04/24.04 VPS (2 vCPU / 4 GB RAM recommended; the sync worker runs a headless Chromium), Docker Compose, Nginx with Let's Encrypt, MySQL 8 in a container with a persistent volume, daily backups.
 
 Services (see `docker-compose.yml`):
@@ -12,7 +14,10 @@ Services (see `docker-compose.yml`):
 | `migrate` | same image as worker | One-shot: `prisma migrate deploy` + seed roles/first admin |
 | `mysql` | mysql:8.4 | Database, volume `mysql_data`, **not** published to the internet |
 | `certbot` | certbot | Certificate renewal loop |
-| `backup` | mysql:8.4 | Daily `mysqldump` to `./backups`, 14-day retention |
+| `backup` | mysql:8.4 | Daily `mysqldump` to `./backups` (14 days) + weekly archive of the documents volume (4 kept) |
+| `clamav` | clamav/clamav | **Optional** (`COMPOSE_PROFILES=clamav`): malware scan of downloaded documents, ~1 GB RAM |
+
+Volumes: `mysql_data` (database), `files_data` (private candidate photos/documents, mounted into `web` and `worker` at `/repo/data/files`, read-only into `backup`), `clamav_data`, `certbot_*`.
 
 ---
 
@@ -167,23 +172,48 @@ git pull && docker compose up -d --build
 
 Migrations run automatically (the `migrate` service) before `web` and `worker` start.
 
-**Backups** land in `./backups/*.sql.gz` daily; copy them off the VPS (e.g. a cron `rsync`/`rclone` to object storage). Restore:
+**Backups** land in `./backups/`: `*.sql.gz` daily and `files-*.tar.gz` weekly (candidate photos/documents). Copy both off the VPS (e.g. a cron `rsync`/`rclone` to object storage) — they contain personal data, so the destination must be private and encrypted. Restore:
 
 ```bash
 gunzip -c backups/ai_automation-YYYYMMDD-HHMMSS.sql.gz | docker compose exec -T mysql mysql -u root -p"$MYSQL_ROOT_PASSWORD" ai_automation
 ```
 
+```bash
+docker run --rm -v "$(basename "$PWD")_files_data:/files" -v "$PWD/backups:/backups:ro" alpine sh -c "cd /files && tar -xzf /backups/files-YYYYMMDD-HHMMSS.tar.gz"
+```
+
+**Malware scanning** is optional. With `COMPOSE_PROFILES=clamav` and `CLAMAV_HOST=clamav:3310` in `.env`, every downloaded document is scanned and infected files are quarantined (never served). Without them documents are stored with scan status `skipped`. ClamAV takes a few minutes to load signatures after the first start.
+
+**Retention**: the worker runs the cleanup daily (Settings → Data retention). Read notifications are removed after 90 days and unread ones after a year; message threads and review history are kept.
+
 **Health**: `GET /api/health` returns `{ ok: true, db: "up" }`; Docker restarts `web` if it fails three times. All services use `restart: unless-stopped`.
 
-**Resource limits**: the worker needs ~1 GB RAM while Chromium runs (`shm_size: 1gb` is set). On a 4 GB VPS run one sync at a time (the app enforces one active job per source).
+**Resource limits**: the worker needs ~1 GB RAM while Chromium runs (`shm_size: 1gb` is set). On a 4 GB VPS run one sync at a time (the app enforces one active job per source). ClamAV adds ~1 GB; on 4 GB either leave it off or move to 8 GB.
+
+## 8a. District review platform — first-time setup
+
+After the first start, as Super Admin:
+
+1. **Settings → Users**: create the **District Admin** accounts (one or more districts each) and **District Viewer** accounts (exactly one district each). Global **Admin** and read-only **Viewer** accounts need no district.
+2. **Settings → Roles**: review the permission matrix. Off by default and grantable to District Admins: confirm/override decisions, manage district users, contact fields.
+3. **Two-step confirmation** for District Viewer decisions is **on** by default (SystemStatus `review:twoStep`).
+4. **Settings → Documents**: identity documents (Aadhaar, PAN, bank passbook) stay **off** unless written approval exists; photo and certificates are on.
+5. Run a sync with profiles so photos/documents are downloaded into the private volume.
+6. Sign in once as a District Admin and once as a District Viewer and confirm they land on `/district` and `/review` and see only their districts.
+
+**First production build check**: the app sends a `Content-Security-Policy` in production only (same-origin scripts, styles, images, fetches; no framing). After the first `docker compose up -d --build`, open the site, sign in, and check the browser console for `Content-Security-Policy` violations before handing it to users.
 
 ## 9. Security checklist
 
 - [ ] Only ports 22, 80, 443 open (`ufw status`); MySQL is not published.
 - [ ] `.env` is `chmod 600`, owned by `deploy`, and not in git.
-- [ ] Seed admin password changed; extra users created with the least role needed (VIEWER / ADMIN).
+- [ ] Seed admin password changed; extra users created with the least role needed (Viewer / District Viewer / District Admin / Admin). Every District Viewer has exactly one district.
 - [ ] `CREDENTIALS_ENCRYPTION_KEY` backed up somewhere safe — without it saved sessions are unreadable (nothing else depends on it).
 - [ ] Written authorization from the MahaHRD owner is on file; the field policy matches what was approved.
 - [ ] AI provider key rotated if it was ever pasted into a chat or ticket.
 - [ ] Backups copied off-box and a restore tested once.
 - [ ] `apt-get upgrade` and `docker compose pull` on a schedule.
+- [ ] Documents volume backups (`files-*.tar.gz`) copied off-box with the database dumps, to private encrypted storage.
+- [ ] Identity document kinds remain disabled unless written approval is on file.
+- [ ] The MahaHRD owner has been told that their document files on `resourcedata.in/user_data_uploads/…` are publicly reachable without login (see `docs/SECURITY-REVIEW.md`).
+- [ ] No browser console CSP violations after the first production build.

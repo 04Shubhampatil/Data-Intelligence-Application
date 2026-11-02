@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Bot, Database, KeyRound, ShieldCheck, Users } from "lucide-react";
 import { prisma, parsePermissions, PERMISSIONS, PERMISSION_LABELS, ROLE_LABELS, isRoleName } from "@di/db";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/layout/page-header";
@@ -11,6 +10,7 @@ import { getLastCleanup, getRetentionSettings, listSuppressed } from "@di/db/ret
 import { listBackups } from "@/server/services/backup.service";
 import { getSources } from "@/server/services/sync.service";
 import { RetentionPanel } from "./retention-panel";
+import { isLockedNow } from "@/server/services/sync.service";
 import { UsersPanel } from "./users-panel";
 import { RolesPanel } from "./roles-panel";
 import { DocumentPolicyPanel } from "./document-policy-panel";
@@ -85,7 +85,7 @@ export default async function SettingsPage() {
               assignableRoles={assignableRoles}
               canAssignAnyDistrict={hasPermission(user.permissions, "districts:assign")}
               users={users.map((u) => ({
-                id: u.id, name: u.name, email: u.email, isActive: u.isActive, lastLoginAt: u.lastLoginAt, role: u.role.name, lockedUntil: u.lockedUntil,
+                id: u.id, name: u.name, email: u.email, isActive: u.isActive, lastLoginAt: u.lastLoginAt, role: u.role.name, lockedUntil: u.lockedUntil, isLocked: isLockedNow(u.lockedUntil),
                 districts: u.districtAssignments.map((a) => a.district),
               }))}
             />
@@ -161,7 +161,7 @@ export default async function SettingsPage() {
           </Card>
         </TabsContent>
         <TabsContent value="retention">
-          <RetentionPanel settings={retention} lastCleanup={lastCleanup} suppressed={suppressed} backups={backups.files} backupDir={backups.dir} canWrite={hasPermission(user.permissions, "settings:write")} />
+          <RetentionPanel settings={retention} lastCleanup={lastCleanup} suppressed={suppressed} backups={backups.files} backupDir={backups.dir} backupAgeH={backups.latestAgeHours} canWrite={hasPermission(user.permissions, "settings:write")} />
         </TabsContent>
       </Tabs>
     </>

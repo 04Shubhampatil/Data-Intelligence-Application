@@ -36,6 +36,9 @@ export type CleanupResult = {
   auditLogs: number;
   assistantResults: number;
   reportRuns: number;
+  notifications?: number;
+  /** Sensitive groups / personal details removed because their field approval was switched off. */
+  unapprovedSensitive?: number;
   purgedCandidates: number;
 };
 
@@ -60,6 +63,33 @@ export async function runRetentionCleanup(now = new Date(), settings?: Retention
       await prisma.candidate.deleteMany({ where: { isDeletedAtSource: true, lastSyncedAt: { lt: ago(s.removedAtSourcePurgeDays, now) } } })
     ).count;
   }
+
+  // Approval withdrawn → stored copies go now (not just on the employee's next profile read).
+  result.unapprovedSensitive = 0;
+  const { SENSITIVE_GROUPS } = await import("@di/core");
+  const sources = await prisma.sourceConnection.findMany({ select: { id: true, fieldPolicies: { where: { allowed: true }, select: { fieldKey: true } } } });
+  for (const src of sources) {
+    const approved = new Set(src.fieldPolicies.map((f) => f.fieldKey));
+    const withdrawn = Object.entries(SENSITIVE_GROUPS).filter(([, g]) => !approved.has(g.fieldKey)).map(([k]) => k);
+    if (withdrawn.length) {
+      result.unapprovedSensitive += (await prisma.candidateSensitiveData.deleteMany({ where: { group: { in: withdrawn }, candidate: { sourceConnectionId: src.id } } })).count;
+    }
+    if (!approved.has("personalDetails")) {
+      result.unapprovedSensitive += (
+        await prisma.candidateProfile.updateMany({
+          where: { personalEncrypted: { not: null }, candidate: { sourceConnectionId: src.id } },
+          data: { personalEncrypted: null, personalHash: null, personalSyncedAt: null },
+        })
+      ).count;
+    }
+  }
+
+  // Fixed rule: read notifications are kept 90 days, unread ones a year (the bell only shows the latest 20).
+  result.notifications = (
+    await prisma.notification.deleteMany({
+      where: { OR: [{ readAt: { not: null }, createdAt: { lt: ago(90, now) } }, { createdAt: { lt: ago(365, now) } }] },
+    })
+  ).count;
 
   await prisma.systemStatus.upsert({ where: { key: "retention:last" }, update: { value: result }, create: { key: "retention:last", value: result } });
   return result;

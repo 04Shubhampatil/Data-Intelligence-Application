@@ -13,9 +13,10 @@ import { getDistrictCounts, getViewerQueue } from "@/server/services/district.se
 import { twoStepEnabled } from "@/server/services/review.service";
 import { prisma } from "@di/db";
 import { formatDateTime, formatNumber } from "@/lib/format";
-import { hasPermission } from "@/lib/rbac";
+import { canOpenDashboard, hasPermission, homeFor } from "@/lib/rbac";
 import { cn } from "@/lib/utils";
 import { QuickDecision } from "./quick-decision";
+import { CandidateAvatar } from "@/components/candidate-avatar";
 import { listThreads } from "@/server/services/message.service";
 import { MessageKindBadge } from "@/components/message-kind-badge";
 import { relativeTime } from "@/lib/format";
@@ -45,7 +46,7 @@ function Stat({ label, value, icon: Icon, tone }: { label: string; value: number
 
 export default async function ReviewQueuePage({ searchParams }: PageProps<"/review">) {
   const user = await requireUser("reviews:read");
-  if (!user.districtScopeIds.length && user.role !== "SUPER_ADMIN") redirect("/");
+  if (!canOpenDashboard("review", user.role)) redirect(homeFor(user.role));
   const sp = await searchParams;
   const status = (TABS.find((t) => t.key === sp.status)?.key ?? "PENDING_REVIEW") as (typeof TABS)[number]["key"];
   const page = Math.max(1, Number(sp.page) || 1);
@@ -58,7 +59,8 @@ export default async function ReviewQueuePage({ searchParams }: PageProps<"/revi
     user.districtScopeIds.length ? prisma.district.findMany({ where: { id: { in: user.districtScopeIds } }, select: { name: true }, orderBy: { name: "asc" } }) : [],
     listThreads(user, { take: 5 }),
   ]);
-  const canDecide = hasPermission(user.permissions, "reviews:decide");
+  // Decisions are Super Admin-only; District Viewers get a read-only queue.
+  const canDecide = user.role === "SUPER_ADMIN" && hasPermission(user.permissions, "reviews:decide");
   const canOverride = hasPermission(user.permissions, "reviews:override");
   const hrefFor = (p: number) => `/review?status=${status}${q ? `&q=${encodeURIComponent(q)}` : ""}&page=${p}`;
 
@@ -69,7 +71,7 @@ export default async function ReviewQueuePage({ searchParams }: PageProps<"/revi
         description={
           <span className="inline-flex items-center gap-1.5">
             <MapPin className="size-4" /> {districts.length ? districts.map((d) => d.name).join(", ") : "All districts"}
-            {twoStep && user.role === "DISTRICT_VIEWER" && <span className="text-xs text-muted-foreground">· your decisions are confirmed by the District Admin</span>}
+            {!canDecide && <span className="text-xs text-muted-foreground">· read-only: decisions are made by the Super Admin</span>}
           </span>
         }
       />
@@ -115,15 +117,18 @@ export default async function ReviewQueuePage({ searchParams }: PageProps<"/revi
                 const decided = c.reviewStatus !== "PENDING_REVIEW";
                 return (
                   <li key={c.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 hover:bg-accent/30">
-                    <div className="min-w-0">
-                      <p className="flex flex-wrap items-center gap-2 font-medium">
-                        <Link href={`/candidates/${c.id}`} className="hover:underline">{c.fullName}</Link>
-                        <ReviewStatusBadge status={c.reviewStatus} updated={c.reviewUpdated} pendingConfirmation={c.reviewPendingConfirmation} />
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {c.sourceEmployeeCode} · {c.designation?.name ?? "—"} · {c.departmentHead?.name ?? "—"}{c.taluka ? ` · ${c.taluka}` : ""}
-                        {c.reviewedAt ? ` · reviewed ${formatDateTime(c.reviewedAt)}` : ""}
-                      </p>
+                    <div className="flex min-w-0 items-center gap-3">
+                      <CandidateAvatar photoUrl={c.photoUrl} name={c.fullName} />
+                      <div className="min-w-0">
+                        <p className="flex flex-wrap items-center gap-2 font-medium">
+                          <Link href={`/candidates/${c.id}`} className="hover:underline">{c.fullName}</Link>
+                          <ReviewStatusBadge status={c.reviewStatus} updated={c.reviewUpdated} pendingConfirmation={c.reviewPendingConfirmation} />
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {c.sourceEmployeeCode} · {c.designation?.name ?? "—"} · {c.departmentHead?.name ?? "—"}{c.taluka ? ` · ${c.taluka}` : ""}
+                          {c.reviewedAt ? ` · reviewed ${formatDateTime(c.reviewedAt)}` : ""}
+                        </p>
+                      </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-1.5">
                       <Button size="sm" variant="ghost" asChild>

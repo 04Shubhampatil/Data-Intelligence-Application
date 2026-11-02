@@ -3,6 +3,7 @@ import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { headers } from "next/headers";
 import { prisma, parsePermissions } from "@di/db";
+import { effectivePermissions } from "@di/db/permissions";
 import { authConfig } from "./auth.config";
 import { loginSchema } from "./lib/validation/auth";
 import { rateLimit } from "./server/security/rate-limit";
@@ -82,7 +83,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           email: user.email,
           name: user.name,
           role: user.role.name,
-          permissions: parsePermissions(user.role.permissions),
+          permissions: effectivePermissions(user.role.name, parsePermissions(user.role.permissions)),
         };
       },
     }),

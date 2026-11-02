@@ -1,4 +1,4 @@
-﻿import { cn } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 const STYLES: Record<string, { label: string; className: string }> = {
   MESSAGE: { label: "Message", className: "bg-accent text-brand-navy" },

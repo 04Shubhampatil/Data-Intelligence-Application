@@ -6,7 +6,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/empty-state";
 import { requireUser } from "@/server/auth/session";
 import { getFilterOptions } from "@/server/services/lookup.service";
-import { getReport, isReportKind, listRecentReports, REPORT_KIND_KEYS, REPORT_KINDS, type ReportKind } from "@/server/services/report.service";
+import { getReport, isReportKind, listRecentReports, REPORT_KINDS, type ReportKind } from "@/server/services/report.service";
 import { parseCandidateFilters } from "@/lib/validation/candidates";
 import { formatDateTime, formatNumber, relativeTime } from "@/lib/format";
 import { hasPermission } from "@/lib/rbac";
@@ -70,7 +70,7 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reports"
             <div className="overflow-x-auto">
               <table className="w-full min-w-[560px] text-sm">
                 <thead>
-                  <tr className="bg-brand-navy text-left text-xs font-semibold uppercase tracking-wide text-white">
+                  <tr className="border-b bg-muted/70 text-left text-xs font-semibold text-foreground">
                     <th className="w-12 px-4 py-3">#</th>
                     <th className="px-4 py-3">{REPORT_KINDS[kind].label.replace(/-wise.*$/, "")}</th>
                     <th className="w-24 px-4 py-3 text-right">Candidates</th>

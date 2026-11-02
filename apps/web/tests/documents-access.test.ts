@@ -27,5 +27,12 @@ describe("document link signing", () => {
     expect(verifyDocumentSignature("doc1", "userA", e, s!.slice(0, -1) + "x", inline, now)).toBe(false);
     expect(verifyDocumentSignature("doc1", "userA", e, s, inline, now + 11 * 60_000)).toBe(false); // 10-minute TTL
     expect(verifyDocumentSignature("doc1", "userA", null, null, inline, now)).toBe(false);
+    // Stable within a 5-minute bucket (cacheable previews), and never shorter than the 10-minute TTL.
+    const t0 = now + 30_000; // 12:00:30 and 12:03:00 both expire at the 12:15 boundary
+    expect(signDocumentUrl("doc1", "userA", { inline: true, now: now + 3 * 60_000 })).toBe(signDocumentUrl("doc1", "userA", { inline: true, now: t0 }));
+    const odd = now + 61_000;
+    const e2 = Number(new URL(`http://x${signDocumentUrl("doc1", "userA", { now: odd })}`).searchParams.get("e"));
+    expect(e2 * 1000 - odd).toBeGreaterThanOrEqual(10 * 60_000);
+    expect(e2 * 1000 - odd).toBeLessThanOrEqual(15 * 60_000);
   });
 });

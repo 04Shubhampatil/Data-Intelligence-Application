@@ -9,13 +9,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { replyMessageAction } from "./message-actions";
 
 export function ReplyForm({ parentId }: { parentId: string }) {
-  const [state, action, pending] = useActionState(replyMessageAction, undefined);
   const [body, setBody] = useState("");
+  const [state, action, pending] = useActionState(async (prev: Parameters<typeof replyMessageAction>[0], fd: FormData) => {
+    const r = await replyMessageAction(prev, fd);
+    if (r?.ok) setBody("");
+    return r;
+  }, undefined);
   useEffect(() => {
-    if (state?.ok) {
-      toast.success(state.message);
-      setBody("");
-    } else if (state?.error) toast.error(state.error);
+    if (state?.ok) toast.success(state.message);
+    else if (state?.error) toast.error(state.error);
   }, [state]);
   return (
     <form action={action} className="space-y-2">

@@ -3,6 +3,7 @@ import { prisma, type ReviewDecision, type ReviewStatus } from "@di/db";
 import type { CurrentUser } from "@/server/auth/session";
 import { candidateScope } from "@/server/auth/scope";
 import { hasPermission } from "@/lib/rbac";
+import { isDecisionRole } from "@di/db/permissions";
 import { audit } from "@/server/security/audit";
 import { districtAdminIds, notifyUsers } from "./notification.service";
 
@@ -16,6 +17,25 @@ export class ReviewError extends Error {
 export async function twoStepEnabled(): Promise<boolean> {
   const row = await prisma.systemStatus.findUnique({ where: { key: "review:twoStep" } });
   return row ? (row.value as { enabled?: boolean }).enabled !== false : true;
+}
+
+/**
+ * Role gates, checked on the ROLE (not just the permission list) and audit-logged when refused,
+ * so no role edit and no direct server-action / API call can bypass them:
+ *  - select / reject: Super Admin, or District Admin (their own districts — enforced by the scope);
+ *  - confirm pending decisions and internal comments: Super Admin only.
+ */
+async function deny(user: CurrentUser, action: string, candidateId: string | undefined, message: string): Promise<never> {
+  await audit("ACCESS_DENIED", { userId: user.id, target: candidateId, metadata: { context: "review", action, role: user.role } });
+  throw new ReviewError(message, "FORBIDDEN");
+}
+
+async function assertSuperAdmin(user: CurrentUser, action: string, candidateId?: string) {
+  if (user.role !== "SUPER_ADMIN") await deny(user, action, candidateId, "Only the Super Admin can confirm decisions or add review comments.");
+}
+
+async function assertDecisionRole(user: CurrentUser, candidateId: string) {
+  if (!isDecisionRole(user.role)) await deny(user, "decide", candidateId, "Only the Super Admin or a District Admin can select or reject candidates.");
 }
 
 /** Loads a candidate the user may act on (scope-enforced) or throws NOT_FOUND. */
@@ -38,6 +58,7 @@ async function loadInScope(candidateId: string, user: CurrentUser) {
  */
 export async function decideCandidate(opts: { candidateId: string; decision: ReviewDecision; remark: string; user: CurrentUser }) {
   const { user } = opts;
+  await assertDecisionRole(user, opts.candidateId);
   if (!hasPermission(user.permissions, "reviews:decide")) throw new ReviewError("You are not allowed to decide on candidates.", "FORBIDDEN");
   const remark = opts.remark.trim();
   if (opts.decision === "REJECTED" && remark.length < 3) throw new ReviewError("A reason is required to reject a candidate.");
@@ -54,7 +75,13 @@ export async function decideCandidate(opts: { candidateId: string; decision: Rev
   }
 
   const requiresConfirmation = user.role === "DISTRICT_VIEWER" && (await twoStepEnabled());
-  const latest = alreadyDecided ? await prisma.candidateReview.findFirst({ where: { candidateId: c.id }, orderBy: { createdAt: "desc" }, select: { id: true } }) : null;
+  const latest = alreadyDecided
+    ? await prisma.candidateReview.findFirst({ where: { candidateId: c.id }, orderBy: { createdAt: "desc" }, select: { id: true, reviewedBy: { select: { role: { select: { name: true } } } } } })
+    : null;
+  // A District Admin can't overrule the Super Admin.
+  if (latest && user.role !== "SUPER_ADMIN" && latest.reviewedBy.role.name === "SUPER_ADMIN") {
+    await deny(user, "override", c.id, "This decision was made by the Super Admin; only the Super Admin can change it.");
+  }
 
   const review = await prisma.$transaction(async (tx) => {
     const r = await tx.candidateReview.create({
@@ -101,6 +128,7 @@ export async function decideCandidate(opts: { candidateId: string; decision: Rev
 
 /** District Admin / Admin confirms a District Viewer decision. */
 export async function confirmReview(reviewId: string, user: CurrentUser) {
+  await assertSuperAdmin(user, "confirm");
   if (!hasPermission(user.permissions, "reviews:confirm")) throw new ReviewError("You are not allowed to confirm decisions.", "FORBIDDEN");
   const r = await prisma.candidateReview.findFirst({
     where: { id: reviewId, requiresConfirmation: true, confirmedAt: null, candidate: { ...candidateScope(user), isDeletedAtSource: false } },
@@ -117,6 +145,7 @@ export async function confirmReview(reviewId: string, user: CurrentUser) {
 }
 
 export async function addComment(opts: { candidateId: string; body: string; user: CurrentUser }) {
+  await assertSuperAdmin(opts.user, "comment", opts.candidateId);
   if (!hasPermission(opts.user.permissions, "comments:write")) throw new ReviewError("You are not allowed to comment.", "FORBIDDEN");
   const body = opts.body.trim();
   if (body.length < 2) throw new ReviewError("Comment is empty.");

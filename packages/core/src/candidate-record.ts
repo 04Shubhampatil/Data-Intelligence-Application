@@ -30,6 +30,12 @@ export const candidateRecordSchema = z
     district: label(60),
     taluka: label(60),
     joiningDate: z.preprocess(parseSourceDate, z.date().nullable()).optional(),
+    officialEmployeeId: z
+      .preprocess((v) => {
+        const s = typeof v === "string" ? v.replace(/\s+/g, "").toUpperCase() : "";
+        return /^[A-Z]{0,4}\d{1,12}$/.test(s) ? s : null;
+      }, z.string().max(20).nullable())
+      .optional(),
     sourceStatus: text(40),
     docVerificationStatus: z.enum(["VERIFIED", "PENDING", "REJECTED", "NONE"]).nullable().optional(),
     mobile: z.preprocess(normalizeIndianMobile, z.string().nullable()).optional(),

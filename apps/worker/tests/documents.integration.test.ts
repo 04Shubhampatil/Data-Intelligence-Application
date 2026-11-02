@@ -81,7 +81,7 @@ describe.skipIf(!hasDb)("document pipeline", async () => {
     // Source replaced the certificate with a non-image, then removed it.
     const bad = await syncDocuments({ candidateId, allowed, download, storage, documents: [doc("SSC_CERTIFICATE", "https://resourcedata.in/user_data_uploads/ssc_certificate_photo/bad.jpg")] });
     expect(bad.failed).toBe(1);
-    expect((await prisma.candidateDocument.findUniqueOrThrow({ where: { candidateId_kind: { candidateId, kind: "SSC_CERTIFICATE" } } })).status).toBe("UNSUPPORTED");
+    expect((await prisma.candidateDocument.findUniqueOrThrow({ where: { candidateId_kind_slot: { candidateId, kind: "SSC_CERTIFICATE", slot: 0 } } })).status).toBe("UNSUPPORTED");
     const gone = await syncDocuments({ candidateId, allowed, download, storage, documents: [doc("SSC_CERTIFICATE", "https://resourcedata.in/user_data_uploads/ssc_certificate_photo/gone.jpg")] });
     expect(gone.missing).toBe(1);
   });

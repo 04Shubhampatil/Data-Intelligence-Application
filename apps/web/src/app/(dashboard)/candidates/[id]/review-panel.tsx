@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState, useTransition } from "react";
-import { CheckCircle2, Loader2, MessageSquarePlus, ShieldCheck, XCircle } from "lucide-react";
+import { CheckCircle2, Eye, Loader2, ShieldCheck, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ReviewStatusBadge } from "@/components/review-status-badge";
-import { commentAction, confirmAction, decideAction, type ReviewActionState } from "./review-actions";
+import { confirmAction, decideAction, type ReviewActionState } from "./review-actions";
 
 type Props = {
   candidateId: string;
@@ -20,9 +20,12 @@ type Props = {
   updated: boolean;
   pendingConfirmation: boolean;
   pendingReviewId: string | null;
+  /** Super Admin, or District Admin in their districts (server-computed); everyone else gets a read-only card. */
   can: { decide: boolean; override: boolean; confirm: boolean; comment: boolean };
-  isDistrictViewer: boolean;
-  twoStep: boolean;
+  /** Latest decision, shown to every role that can read reviews. */
+  latest: { decision: "SELECTED" | "REJECTED"; by: string; byRole: string; at: string; remark: string | null } | null;
+  /** "banner": only the Select / Reject buttons (+ dialog), styled for the dark profile banner. */
+  variant?: "card" | "banner";
 };
 
 function useToast(state: ReviewActionState) {
@@ -33,20 +36,67 @@ function useToast(state: ReviewActionState) {
 }
 
 export function ReviewPanel(p: Props) {
-  const [state, action, pending] = useActionState(decideAction, undefined);
   const [open, setOpen] = useState<"SELECTED" | "REJECTED" | null>(null);
   const [remark, setRemark] = useState("");
-  useToast(state);
-  useEffect(() => {
-    if (state?.ok) {
+  const [state, action, pending] = useActionState(async (prev: ReviewActionState, fd: FormData) => {
+    const r = await decideAction(prev, fd);
+    if (r?.ok) {
       setOpen(null);
       setRemark("");
     }
-  }, [state]);
+    return r;
+  }, undefined);
+  useToast(state);
 
   const decided = p.status !== "PENDING_REVIEW";
   const canAct = p.can.decide && (!decided || p.can.override);
   const rejectNeedsRemark = open === "REJECTED" && remark.trim().length < 3;
+
+  const dialog = (
+        <AlertDialog open={open !== null} onOpenChange={(o) => !o && setOpen(null)}>
+      <AlertDialogContent>
+        <form action={action}>
+          <input type="hidden" name="candidateId" value={p.candidateId} />
+          <input type="hidden" name="decision" value={open ?? ""} />
+          <AlertDialogHeader>
+            <AlertDialogTitle>{open === "SELECTED" ? "Select" : "Reject"} {p.candidateName}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {decided ? "This replaces the current decision. The earlier decision stays in the history. " : ""}
+              {open === "REJECTED" ? "A reason is required for rejection." : "You can add an optional comment."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="my-4 space-y-1.5">
+            <Label htmlFor="remark">{open === "REJECTED" ? "Reason (required)" : "Comment (optional)"}</Label>
+            <Textarea id="remark" name="remark" value={remark} onChange={(e) => setRemark(e.target.value)} rows={3} maxLength={2000} className="bg-card" />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel type="button" disabled={pending}>Cancel</AlertDialogCancel>
+            {/* Plain submit (not AlertDialogAction): the dialog must stay mounted until the server action has read the form. */}
+            <Button type="submit" disabled={pending || rejectNeedsRemark} className={open === "REJECTED" ? "bg-destructive text-white hover:bg-destructive/90" : "bg-success text-success-foreground hover:bg-success/90"}>
+              {pending ? <Loader2 className="animate-spin" /> : open === "SELECTED" ? <CheckCircle2 /> : <XCircle />}
+              Confirm {open === "SELECTED" ? "selection" : "rejection"}
+            </Button>
+          </AlertDialogFooter>
+        </form>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+
+  if (p.variant === "banner") {
+    if (!p.can.decide) return null;
+    return (
+      <div className="flex flex-wrap gap-2.5">
+        <Button onClick={() => setOpen("SELECTED")} disabled={!canAct || pending} className="h-10 rounded-xl bg-emerald-600 px-4 text-white shadow-md shadow-emerald-950/30 hover:bg-emerald-500">
+          <CheckCircle2 /> {decided ? "Change to Selected" : "Select Candidate"}
+        </Button>
+        <Button onClick={() => setOpen("REJECTED")} disabled={!canAct || pending} className="h-10 rounded-xl bg-red-600 px-4 text-white shadow-md shadow-red-950/30 hover:bg-red-500">
+          <XCircle /> {decided ? "Change to Rejected" : "Reject Candidate"}
+        </Button>
+        {p.pendingConfirmation && p.pendingReviewId && p.can.confirm && <ConfirmButton reviewId={p.pendingReviewId} candidateId={p.candidateId} />}
+        {dialog}
+      </div>
+    );
+  }
 
   return (
     <Card>
@@ -55,11 +105,26 @@ export function ReviewPanel(p: Props) {
           Review <ReviewStatusBadge status={p.status} updated={p.updated} pendingConfirmation={p.pendingConfirmation} />
         </CardTitle>
         <CardDescription>
-          Decisions are made by people and kept as a permanent history. {decided && !p.can.override && p.can.decide ? "Changing a decision requires the override permission." : ""}
-          {p.isDistrictViewer && p.twoStep ? " Your decisions are sent to the District Admin for confirmation." : ""}
+          {p.can.decide
+            ? "Decisions are kept as a permanent history; changing one adds a new entry."
+            : "Read-only. Candidate decisions are made by the Super Admin or the District Admin."}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
+        {p.latest ? (
+          <div className="rounded-lg border bg-muted/40 px-4 py-3 text-sm">
+            <p>
+              <span className={p.latest.decision === "SELECTED" ? "font-semibold text-success" : "font-semibold text-destructive"}>
+                {p.latest.decision === "SELECTED" ? "Selected" : "Rejected"}
+              </span>{" "}
+              by <span className="font-medium">{p.latest.by}</span> <span className="text-muted-foreground">({p.latest.byRole})</span> on {p.latest.at}
+            </p>
+            {p.latest.remark && <p className="mt-1.5 whitespace-pre-wrap text-muted-foreground">“{p.latest.remark}”</p>}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">Pending — no decision has been made yet.</p>
+        )}
+
         {p.can.decide && (
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => setOpen("SELECTED")} disabled={!canAct || pending} className="bg-success text-success-foreground hover:bg-success/90">
@@ -71,38 +136,14 @@ export function ReviewPanel(p: Props) {
             {p.pendingConfirmation && p.pendingReviewId && p.can.confirm && <ConfirmButton reviewId={p.pendingReviewId} candidateId={p.candidateId} />}
           </div>
         )}
-        {!p.can.decide && <p className="text-sm text-muted-foreground">Your role can view decisions but not make them.</p>}
+        {!p.can.decide && (
+          <p className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Eye className="size-3.5" /> You can view the decision, comments and history below but not change them.
+          </p>
+        )}
 
-        {p.can.comment && <CommentForm candidateId={p.candidateId} />}
 
-        <AlertDialog open={open !== null} onOpenChange={(o) => !o && setOpen(null)}>
-          <AlertDialogContent>
-            <form action={action}>
-              <input type="hidden" name="candidateId" value={p.candidateId} />
-              <input type="hidden" name="decision" value={open ?? ""} />
-              <AlertDialogHeader>
-                <AlertDialogTitle>{open === "SELECTED" ? "Select" : "Reject"} {p.candidateName}?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  {decided ? "This replaces the current decision. The earlier decision stays in the history. " : ""}
-                  {open === "REJECTED" ? "A reason is required for rejection." : "You can add an optional comment."}
-                  {p.isDistrictViewer && p.twoStep ? " The decision will wait for District Admin confirmation." : ""}
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <div className="my-4 space-y-1.5">
-                <Label htmlFor="remark">{open === "REJECTED" ? "Reason (required)" : "Comment (optional)"}</Label>
-                <Textarea id="remark" name="remark" value={remark} onChange={(e) => setRemark(e.target.value)} rows={3} maxLength={2000} className="bg-card" />
-              </div>
-              <AlertDialogFooter>
-                <AlertDialogCancel type="button" disabled={pending}>Cancel</AlertDialogCancel>
-                {/* Plain submit (not AlertDialogAction): the dialog must stay mounted until the server action has read the form. */}
-                <Button type="submit" disabled={pending || rejectNeedsRemark} className={open === "REJECTED" ? "bg-destructive text-white hover:bg-destructive/90" : "bg-success text-success-foreground hover:bg-success/90"}>
-                  {pending ? <Loader2 className="animate-spin" /> : open === "SELECTED" ? <CheckCircle2 /> : <XCircle />}
-                  Confirm {open === "SELECTED" ? "selection" : "rejection"}
-                </Button>
-              </AlertDialogFooter>
-            </form>
-          </AlertDialogContent>
-        </AlertDialog>
+        {dialog}
       </CardContent>
     </Card>
   );
@@ -122,26 +163,7 @@ function ConfirmButton({ reviewId, candidateId }: { reviewId: string; candidateI
         })
       }
     >
-      {pending ? <Loader2 className="animate-spin" /> : <ShieldCheck />} Confirm viewer decision
+      {pending ? <Loader2 className="animate-spin" /> : <ShieldCheck />} Confirm pending decision
     </Button>
-  );
-}
-
-function CommentForm({ candidateId }: { candidateId: string }) {
-  const [state, action, pending] = useActionState(commentAction, undefined);
-  const [body, setBody] = useState("");
-  useToast(state);
-  useEffect(() => {
-    if (state?.ok) setBody("");
-  }, [state]);
-  return (
-    <form action={action} className="space-y-2">
-      <input type="hidden" name="candidateId" value={candidateId} />
-      <Label htmlFor="comment">Add a review comment (internal; never shown to the candidate)</Label>
-      <Textarea id="comment" name="body" value={body} onChange={(e) => setBody(e.target.value)} rows={2} maxLength={2000} placeholder="e.g. Certificates checked, experience letter missing" className="bg-card" />
-      <Button type="submit" size="sm" variant="outline" disabled={pending || body.trim().length < 2}>
-        {pending ? <Loader2 className="animate-spin" /> : <MessageSquarePlus />} Add comment
-      </Button>
-    </form>
   );
 }

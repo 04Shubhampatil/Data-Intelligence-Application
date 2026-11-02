@@ -79,3 +79,13 @@ export async function getWorkerStatus() {
   const seenAt = v.seenAt ? new Date(v.seenAt) : row.updatedAt;
   return { online: Date.now() - seenAt.getTime() < WORKER_STALE_MS, seenAt, currentJobId: v.currentJobId ?? null, host: v.host };
 }
+
+
+/** Request-time checks used by server pages (kept out of render so pages stay pure). */
+export function isLockedNow(lockedUntil: Date | null | undefined): boolean {
+  return !!lockedUntil && lockedUntil.getTime() > Date.now();
+}
+
+export function isQueuedTooLong(job: { status: string; createdAt: Date } | undefined, ms = 15_000): boolean {
+  return job?.status === "QUEUED" && Date.now() - job.createdAt.getTime() > ms;
+}

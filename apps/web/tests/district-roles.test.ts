@@ -15,10 +15,14 @@ describe("district roles", () => {
     }
   });
 
-  it("only humans with reviews:decide can decide; Viewer cannot", () => {
-    expect(DEFAULT_ROLE_PERMISSIONS.VIEWER).not.toContain("reviews:decide");
-    expect(DEFAULT_ROLE_PERMISSIONS.DISTRICT_VIEWER).toContain("reviews:decide");
-    expect(DEFAULT_ROLE_PERMISSIONS.DISTRICT_ADMIN).not.toContain("reviews:override"); // grantable, off by default
+  it("Super Admin and District Admin decide; only the Super Admin comments; everyone else only reads", () => {
+    expect(DEFAULT_ROLE_PERMISSIONS.SUPER_ADMIN).toContain("reviews:decide");
+    expect(DEFAULT_ROLE_PERMISSIONS.DISTRICT_ADMIN).toContain("reviews:decide");
+    for (const r of ["ADMIN", "DISTRICT_VIEWER", "VIEWER"] as const) expect(DEFAULT_ROLE_PERMISSIONS[r]).not.toContain("reviews:decide");
+    for (const r of ["ADMIN", "DISTRICT_ADMIN", "DISTRICT_VIEWER", "VIEWER"] as const) {
+      expect(DEFAULT_ROLE_PERMISSIONS[r]).not.toContain("comments:write");
+      expect(DEFAULT_ROLE_PERMISSIONS[r]).toContain("reviews:read");
+    }
   });
 
   it("district assignment rules", () => {

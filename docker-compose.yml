@@ -101,8 +101,11 @@ services:
     entrypoint: ["sh", "-c", "trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done"]
     restart: unless-stopped
 
+  # Optional malware scanning of downloaded documents (~1 GB RAM). Enable with
+  # COMPOSE_PROFILES=clamav and CLAMAV_HOST=clamav:3310 in .env; without it files are stored as "skipped".
   clamav:
     image: clamav/clamav:stable
+    profiles: ["clamav"]
     restart: unless-stopped
     volumes:
       - clamav_data:/var/lib/clamav
@@ -123,9 +126,12 @@ services:
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
       BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
+      BACKUP_FILES_KEEP: ${BACKUP_FILES_KEEP:-4}
+      FILES_DIR: /files
     volumes:
       - ./docker/backup.sh:/backup.sh:ro
       - ./backups:/backups
+      - files_data:/files:ro
     depends_on:
       mysql: { condition: service_healthy }
     logging: *logging

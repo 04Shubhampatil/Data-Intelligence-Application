@@ -1,42 +1,65 @@
 import "../env";
-import { FIELD_DEFS, type FieldKey } from "@di/core";
+import { DOCUMENT_DEFS, SENSITIVE_GROUPS, syncOptionsSchema, type DocumentKind, type SensitiveGroup } from "@di/core";
 import { prisma } from "@di/db";
-import { extractOne } from "../jobs/extract-one";
+import { enqueueJob } from "../jobs/queue";
+import { runSyncJob } from "../jobs/run-sync";
 import { getSourceConnection } from "./source";
 
 /**
- * Usage:
- *   npm run source:extract-one -- E1234             # a specific employee code
- *   npm run source:extract-one -- first             # first row of the records list
- * Add --headed to watch the (read-only) browser.
+ * Extract ONE employee end-to-end through the normal sync pipeline (profile, every approved
+ * section, attendance, tickets, documents) and print a summary of what was stored.
+ * The summary shows section names and counts only — never personal values.
+ *
+ *   npm run source:extract-one -- E1234
  */
-const args = process.argv.slice(2);
-const code = args.find((a) => /^E\d+$/i.test(a))?.toUpperCase();
-const headed = args.includes("--headed");
-const first = args.includes("--first") || args.includes("first");
-if (!code && !first) {
-  console.error("Give an employee code (e.g. E1234) or --first.");
+const code = process.argv.slice(2).find((a) => /^E\d+$/i.test(a))?.toUpperCase();
+if (!code) {
+  console.error("Give an employee code, e.g. npm run source:extract-one -- E8790");
   process.exit(2);
 }
 
 const conn = await getSourceConnection();
-const result = await extractOne({ connectionId: conn.id, code, headed });
-
-if (result.ok) {
-  console.log(`\n✔ Sync job ${result.jobId} — ${result.outcome}`);
-  console.log(`  Source reports ${result.sourceTotal.toLocaleString("en-IN")} records (only 1 was read).\n`);
-  console.log("  Stored fields (allow-listed only):");
-  for (const [k, v] of Object.entries(result.stored)) {
-    const label = FIELD_DEFS[k as FieldKey]?.label ?? k;
-    const shown = v instanceof Date ? v.toISOString().slice(0, 10) : (v ?? "—");
-    console.log(`    ${label.padEnd(36)} ${shown}`);
-  }
-} else {
-  console.error(`\n✘ Sync job ${result.jobId} failed at ${result.stage}: ${result.message}`);
-  process.exitCode = 1;
+const options = syncOptionsSchema.parse({ kind: "one", codes: [code], includeProfiles: true, profileMaxAgeDays: 0 });
+let jobId: string;
+try {
+  jobId = (await enqueueJob(conn.id, options, { claimNow: true })).id;
+} catch (e) {
+  console.error(e instanceof Error ? e.message : e);
+  process.exit(1);
 }
-if (result.guard) {
-  console.log(`\n  Guard: ${result.guard.allowed} requests allowed, ${result.guard.blocked.length} blocked.`);
-  for (const b of result.guard.blocked.slice(0, 15)) console.log(`    blocked ${b.method} ${b.path} (${b.reason})`);
+
+const status = await runSyncJob(jobId, (m) => console.log(`[${new Date().toLocaleTimeString("en-IN")}] ${m}`));
+const job = await prisma.syncJob.findUniqueOrThrow({ where: { id: jobId }, include: { errors: { where: { resolvedAt: null }, take: 20 } } });
+console.log(`\n${status === "SUCCEEDED" ? "✔" : "✘"} Sync job ${jobId} — ${status} (created ${job.created}, updated ${job.updated}, unchanged ${job.unchanged}, failed ${job.failed})`);
+for (const e of job.errors) console.log(`  ! ${e.stage}: ${e.message}`);
+
+const c = await prisma.candidate.findUnique({
+  where: { sourceConnectionId_sourceEmployeeCode: { sourceConnectionId: conn.id, sourceEmployeeCode: code } },
+  select: {
+    fullName: true, profileSyncedAt: true, documentsSyncedAt: true, attendanceSyncedAt: true, ticketsSyncedAt: true,
+    profile: { select: { personalEncrypted: true, officeLat: true } },
+    sensitive: { select: { group: true, syncedAt: true } },
+    documents: { select: { kind: true, slot: true, status: true, mimeType: true, sizeBytes: true, encrypted: true, sourceVerification: true, error: true }, orderBy: [{ kind: "asc" }, { slot: "asc" }] },
+    attendance: { select: { year: true, month: true, present: true, absent: true, days: true }, orderBy: [{ year: "desc" }, { month: "desc" }], take: 1 },
+    _count: { select: { tickets: true } },
+  },
+});
+if (c) {
+  const yes = (b: unknown) => (b ? "yes" : "no");
+  console.log(`\n  Profile read:            ${yes(c.profileSyncedAt)}`);
+  console.log(`  Profile & employment:    ${yes(c.profile?.personalEncrypted)} (encrypted)`);
+  console.log(`  Office location:         ${yes(c.profile?.officeLat != null)}`);
+  for (const g of Object.keys(SENSITIVE_GROUPS) as SensitiveGroup[]) {
+    console.log(`  ${(SENSITIVE_GROUPS[g].label + ":").padEnd(24)} ${yes(c.sensitive.some((s) => s.group === g))}${c.sensitive.some((s) => s.group === g) ? " (encrypted)" : ""}`);
+  }
+  const a = c.attendance[0];
+  console.log(`  Attendance:              ${a ? `${a.year}-${String(a.month).padStart(2, "0")} — ${(a.days as unknown[]).length} day rows` : "none"}`);
+  console.log(`  Tickets:                 ${c._count.tickets}`);
+  console.log(`  Documents (${c.documents.length}):`);
+  for (const d of c.documents) {
+    const label = `${DOCUMENT_DEFS[d.kind as DocumentKind]?.label ?? d.kind}${d.slot ? ` #${d.slot + 1}` : ""}`;
+    const size = d.sizeBytes ? `${Math.round(d.sizeBytes / 1024)} KB` : "";
+    console.log(`    ${label.padEnd(24)} ${d.status.padEnd(18)} ${(d.mimeType ?? "").padEnd(16)} ${size.padEnd(8)} ${d.encrypted ? "encrypted" : "         "} ${d.sourceVerification ?? ""}${d.error ? `  (${d.error})` : ""}`);
+  }
 }
 await prisma.$disconnect();

@@ -164,6 +164,8 @@ export async function setRolePermissionAction(roleName: string, permission: stri
   if (!isRoleName(roleName) || roleName === "SUPER_ADMIN") return { error: "Super Admin permissions can't be changed." };
   const { isPermission, parsePermissions } = await import("@di/db");
   if (!isPermission(permission)) return { error: "Unknown permission." };
+  const { isReservedFor } = await import("@di/db/permissions");
+  if (enabled && isReservedFor(roleName, permission)) return { error: "That permission is reserved: decisions for the Super Admin and District Admins, confirmations and review comments for the Super Admin." };
   const role = await prisma.role.findUniqueOrThrow({ where: { name: roleName } });
   const current = new Set(parsePermissions(role.permissions));
   if (enabled) current.add(permission);

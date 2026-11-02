@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_ROLE_PERMISSIONS, PERMISSIONS, parsePermissions } from "@di/db/permissions";
-import { hasPermission, homeFor, navFor } from "@/lib/rbac";
+import { canOpenDashboard, hasPermission, homeFor, navFor } from "@/lib/rbac";
 
 describe("hasPermission", () => {
   it("requires every listed permission", () => {
@@ -34,11 +34,11 @@ describe("default roles", () => {
 
   it("nav is filtered per role", () => {
     const viewerNav = navFor(DEFAULT_ROLE_PERMISSIONS.VIEWER, "VIEWER").map((i) => i.href);
-    expect(viewerNav).toEqual(["/", "/candidates", "/assistant", "/reports"]);
-    expect(navFor(DEFAULT_ROLE_PERMISSIONS.SUPER_ADMIN, "SUPER_ADMIN")).toHaveLength(8);
+    expect(viewerNav).toEqual(["/", "/candidates", "/reports"]);
+    expect(navFor(DEFAULT_ROLE_PERMISSIONS.SUPER_ADMIN, "SUPER_ADMIN")).toHaveLength(7);
     // District roles see their own dashboard instead of the global one.
-    expect(navFor(DEFAULT_ROLE_PERMISSIONS.DISTRICT_VIEWER, "DISTRICT_VIEWER").map((i) => i.href)).toEqual(["/review", "/candidates", "/messages", "/assistant"]);
-    expect(navFor(DEFAULT_ROLE_PERMISSIONS.DISTRICT_ADMIN, "DISTRICT_ADMIN").map((i) => i.href)).toEqual(["/district", "/candidates", "/messages", "/assistant", "/reports"]);
+    expect(navFor(DEFAULT_ROLE_PERMISSIONS.DISTRICT_VIEWER, "DISTRICT_VIEWER").map((i) => i.href)).toEqual(["/review", "/candidates", "/messages"]);
+    expect(navFor(DEFAULT_ROLE_PERMISSIONS.DISTRICT_ADMIN, "DISTRICT_ADMIN").map((i) => i.href)).toEqual(["/district", "/candidates", "/messages", "/reports"]);
   });
 
   it("district dashboards appear only for district roles (and the Super Admin supervision view)", () => {
@@ -53,6 +53,14 @@ describe("default roles", () => {
     expect(homeFor("DISTRICT_ADMIN")).toBe("/district");
     expect(homeFor("DISTRICT_VIEWER")).toBe("/review");
     expect(homeFor("ADMIN")).toBe("/");
+  });
+
+  it("district dashboards are gated by role, not only by permission", () => {
+    expect(canOpenDashboard("district", "DISTRICT_ADMIN")).toBe(true);
+    expect(canOpenDashboard("district", "SUPER_ADMIN")).toBe(true);
+    for (const r of ["DISTRICT_VIEWER", "VIEWER", "ADMIN"]) expect(canOpenDashboard("district", r)).toBe(false);
+    expect(canOpenDashboard("review", "DISTRICT_VIEWER")).toBe(true);
+    for (const r of ["DISTRICT_ADMIN", "VIEWER", "ADMIN"]) expect(canOpenDashboard("review", r)).toBe(false);
   });
 });
 

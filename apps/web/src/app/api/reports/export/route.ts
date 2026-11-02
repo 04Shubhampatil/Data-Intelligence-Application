@@ -2,17 +2,13 @@ import { prisma } from "@di/db";
 import { authorizeApi } from "@/server/auth/session";
 import { buildCandidateWhere } from "@/server/services/candidate.service";
 import { groupCandidates, isReportKind, REPORT_KINDS } from "@/server/services/report.service";
-import { projectRow } from "@/server/ai/tools";
+import { projectRow, ROW_SELECT } from "@/server/ai/tools";
 import { buildCandidatesWorkbook } from "@/server/excel/candidates-workbook";
 import { candidateFilterSchema } from "@/lib/validation/candidates";
 import { audit } from "@/server/security/audit";
 import { rateLimit } from "@/server/security/rate-limit";
 
-const ROW_SELECT = {
-  sourceEmployeeCode: true, fullName: true, gender: true, employeeType: true, taluka: true, joiningDate: true, sourceStatus: true, docVerificationStatus: true,
-  district: { select: { name: true } }, departmentHead: { select: { name: true } }, department: { select: { name: true } },
-  subProject: { select: { name: true } }, designation: { select: { name: true } },
-} as const;
+// Same projection as the AI tools and the on-screen tables (approved fields + review status).
 
 /** GET /api/reports/export?kind=district&districtId=…  — same filters as the Reports page. */
 export async function GET(request: Request) {
