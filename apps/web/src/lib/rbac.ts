@@ -15,6 +15,8 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/district", label: "District Dashboard", icon: "map-pin", permission: "reviews:read", roles: ["DISTRICT_ADMIN", "SUPER_ADMIN"] },
   { href: "/review", label: "My Reviews", icon: "clipboard-check", permission: "reviews:read", roles: ["DISTRICT_VIEWER"] },
   { href: "/candidates", label: "Resource Records", icon: "users", permission: "candidates:read" },
+  // Verified users of the admin's own districts (2026-11-02). District Admins only — not shown to the Super Admin.
+  { href: "/verified-records", label: "Verified Records", icon: "badge-check", permission: "reviews:read", roles: ["DISTRICT_ADMIN"] },
   { href: "/messages", label: "Messages", icon: "mail", permission: "messages:read", roles: ["DISTRICT_ADMIN", "DISTRICT_VIEWER", "SUPER_ADMIN", "ADMIN"] },
   // AI Assistant menu item removed from the sidebar (2026-11-02); the page itself is unchanged.
   { href: "/sync", label: "Data Synchronization", icon: "refresh-cw", permission: "sync:read" },
@@ -26,8 +28,19 @@ export function navFor(granted: readonly Permission[], role?: RoleName | string)
   return NAV_ITEMS.filter((i) => hasPermission(granted, i.permission) && (!i.roles || (role !== undefined && (i.roles as readonly string[]).includes(role))));
 }
 
+/** Roles whose data is always limited to their assigned districts. */
+export const DISTRICT_ROLES = ["DISTRICT_ADMIN", "DISTRICT_VIEWER"] as const;
+/** Matches no real district: a district role with no assignment sees nothing, never everything. */
+export const NO_DISTRICT = "__no_district__";
+
+/** The district scope used for every query. Empty means unrestricted, which only global roles may have. */
+export function districtScopeFor(role: string, assignedDistrictIds: readonly string[]): string[] {
+  if (assignedDistrictIds.length) return [...assignedDistrictIds];
+  return (DISTRICT_ROLES as readonly string[]).includes(role) ? [NO_DISTRICT] : [];
+}
+
 /** Roles allowed on each district dashboard (page guards use this together with the permission check). */
-export const DISTRICT_DASHBOARD_ROLES = { district: ["DISTRICT_ADMIN", "SUPER_ADMIN"], review: ["DISTRICT_VIEWER", "SUPER_ADMIN"] } as const;
+export const DISTRICT_DASHBOARD_ROLES = { district: ["DISTRICT_ADMIN", "SUPER_ADMIN"], review: ["DISTRICT_VIEWER", "SUPER_ADMIN"], verified: ["DISTRICT_ADMIN"] } as const;
 
 export function canOpenDashboard(which: keyof typeof DISTRICT_DASHBOARD_ROLES, role: string) {
   return (DISTRICT_DASHBOARD_ROLES[which] as readonly string[]).includes(role);

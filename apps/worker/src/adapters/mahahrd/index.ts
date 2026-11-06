@@ -45,7 +45,7 @@ export const mahahrdAdapter: SourceAdapter = {
   async fetchPage(page, { start, length, filters }) {
     const json = await fetchListingPage(page, { start, length, params: filterParams(filters) });
     if (!Array.isArray(json?.data)) throw new AdapterError("LAYOUT_CHANGED", "Listing response has no data array.");
-    return { total: Number(json.recordsFiltered ?? json.recordsTotal ?? 0), rows: json.data.map(mapListingRow) };
+    return { total: Number(json.recordsFiltered ?? json.recordsTotal ?? 0), rows: json.data.map((r) => mapListingRow(r)) };
   },
 
   profileFields: [

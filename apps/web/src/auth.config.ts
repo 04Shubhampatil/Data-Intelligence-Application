@@ -22,7 +22,11 @@ export const authConfig = {
       if (pathname.startsWith("/api/auth") || pathname === "/api/health") return true; // health check must stay public
       const signedIn = !!auth?.user;
       if (isPublicPath(pathname)) {
-        return signedIn ? Response.redirect(new URL("/", request.nextUrl)) : true;
+        // Only page visits are sent home. A form submission (server action POST) must reach the action:
+        // redirecting it returns an HTML page and the form fails with "An unexpected response was
+        // received from the server" (e.g. a login tab left open while signed in elsewhere).
+        const isPageVisit = request.method === "GET" || request.method === "HEAD";
+        return signedIn && isPageVisit ? Response.redirect(new URL("/", request.nextUrl)) : true;
       }
       // API callers get a JSON 401, not a redirect to the HTML login page.
       if (!signedIn && pathname.startsWith("/api/")) return Response.json({ error: "Unauthorized" }, { status: 401 });

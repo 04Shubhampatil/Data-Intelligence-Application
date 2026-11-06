@@ -8,6 +8,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { SyncStatusBadge } from "@/components/sync-status-badge";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { requireUser } from "@/server/auth/session";
+import { sourceCommands } from "@/lib/source-commands";
 import { getRecentJobs, getSources, getWorkerStatus, isActive, isResumable, jobLabel, jobOptions, listSchedules, isQueuedTooLong } from "@/server/services/sync.service";
 import { DEFAULT_TIME_ZONE, describeSync } from "@di/core";
 import { SchedulesCard } from "./schedules-card";
@@ -92,7 +93,7 @@ export default async function SyncPage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Play className="size-4" /> Start a sync
+                <Play className="size-4" /> Start a sync{sources.length > 1 ? ` · ${s.name}` : ""}
               </CardTitle>
               <CardDescription>Start with one district to review results before syncing everything.</CardDescription>
             </CardHeader>
@@ -102,7 +103,7 @@ export default async function SyncPage() {
                   sourceId={s.id}
                   districts={s.districts}
                   disabled={!!active || !s.sessionSavedAt}
-                  disabledReason={active ? "A sync is already in progress." : !s.sessionSavedAt ? "Sign in to the source first (npm run source:login)." : undefined}
+                  disabledReason={active ? "A sync is already in progress." : !s.sessionSavedAt ? `Sign in to the source first (${sourceCommands(s.adapterKey).login}).` : undefined}
                 />
               ) : (
                 <p className="text-sm text-muted-foreground">Your role can view sync status but not start syncs.</p>
@@ -181,7 +182,10 @@ export default async function SyncPage() {
                           {formatDateTime(j.startedAt ?? j.createdAt)}
                         </Link>
                       </td>
-                      <td className="py-2.5 pr-4">{jobLabel(j.filters)}</td>
+                      <td className="py-2.5 pr-4">
+                        {sources.length > 1 && <span className="text-muted-foreground">{j.sourceConnection.name} · </span>}
+                        {jobLabel(j.filters)}
+                      </td>
                       <td className="py-2.5 pr-4">
                         <SyncStatusBadge status={j.status === "RUNNING" && !isActive(j) ? "FAILED" : j.status} />
                       </td>

@@ -5,6 +5,7 @@ import { z } from "zod";
 import { requireUser } from "@/server/auth/session";
 import { addComment, confirmReview, decideCandidate, ReviewError } from "@/server/services/review.service";
 import { rateLimit } from "@/server/security/rate-limit";
+import { decisionWord } from "@/lib/review-labels";
 
 const TOO_FAST: ReviewActionState = { error: "Too many actions in a short time. Please wait a few minutes." };
 
@@ -31,8 +32,8 @@ export async function decideAction(_prev: ReviewActionState, formData: FormData)
     return {
       ok: true,
       message: r.requiresConfirmation
-        ? `Marked as ${r.decision.toLowerCase()} — awaiting District Admin confirmation.`
-        : `Candidate ${r.decision.toLowerCase()}${r.isOverride ? " (previous decision overridden)" : ""}.`,
+        ? `Marked as ${decisionWord(r.decision)} — awaiting District Admin confirmation.`
+        : `Candidate ${decisionWord(r.decision)}${r.isOverride ? " (previous decision overridden)" : ""}.`,
     };
   } catch (err) {
     return fail(err);

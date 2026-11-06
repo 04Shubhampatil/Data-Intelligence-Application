@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ReviewStatusBadge } from "@/components/review-status-badge";
 import { confirmAction, decideAction, type ReviewActionState } from "./review-actions";
+import { decisionLabel } from "@/lib/review-labels";
 
 type Props = {
   candidateId: string;
@@ -59,7 +60,7 @@ export function ReviewPanel(p: Props) {
           <input type="hidden" name="candidateId" value={p.candidateId} />
           <input type="hidden" name="decision" value={open ?? ""} />
           <AlertDialogHeader>
-            <AlertDialogTitle>{open === "SELECTED" ? "Select" : "Reject"} {p.candidateName}?</AlertDialogTitle>
+            <AlertDialogTitle>{open === "SELECTED" ? "Verify" : "Reject"} {p.candidateName}?</AlertDialogTitle>
             <AlertDialogDescription>
               {decided ? "This replaces the current decision. The earlier decision stays in the history. " : ""}
               {open === "REJECTED" ? "A reason is required for rejection." : "You can add an optional comment."}
@@ -74,7 +75,7 @@ export function ReviewPanel(p: Props) {
             {/* Plain submit (not AlertDialogAction): the dialog must stay mounted until the server action has read the form. */}
             <Button type="submit" disabled={pending || rejectNeedsRemark} className={open === "REJECTED" ? "bg-destructive text-white hover:bg-destructive/90" : "bg-success text-success-foreground hover:bg-success/90"}>
               {pending ? <Loader2 className="animate-spin" /> : open === "SELECTED" ? <CheckCircle2 /> : <XCircle />}
-              Confirm {open === "SELECTED" ? "selection" : "rejection"}
+              Confirm {open === "SELECTED" ? "verification" : "rejection"}
             </Button>
           </AlertDialogFooter>
         </form>
@@ -87,7 +88,7 @@ export function ReviewPanel(p: Props) {
     return (
       <div className="flex flex-wrap gap-2.5">
         <Button onClick={() => setOpen("SELECTED")} disabled={!canAct || pending} className="h-10 rounded-xl bg-emerald-600 px-4 text-white shadow-md shadow-emerald-950/30 hover:bg-emerald-500">
-          <CheckCircle2 /> {decided ? "Change to Selected" : "Select Candidate"}
+          <CheckCircle2 /> {decided ? "Change to Verified" : "Verify Candidate"}
         </Button>
         <Button onClick={() => setOpen("REJECTED")} disabled={!canAct || pending} className="h-10 rounded-xl bg-red-600 px-4 text-white shadow-md shadow-red-950/30 hover:bg-red-500">
           <XCircle /> {decided ? "Change to Rejected" : "Reject Candidate"}
@@ -115,7 +116,7 @@ export function ReviewPanel(p: Props) {
           <div className="rounded-lg border bg-muted/40 px-4 py-3 text-sm">
             <p>
               <span className={p.latest.decision === "SELECTED" ? "font-semibold text-success" : "font-semibold text-destructive"}>
-                {p.latest.decision === "SELECTED" ? "Selected" : "Rejected"}
+                {decisionLabel(p.latest.decision)}
               </span>{" "}
               by <span className="font-medium">{p.latest.by}</span> <span className="text-muted-foreground">({p.latest.byRole})</span> on {p.latest.at}
             </p>
@@ -128,7 +129,7 @@ export function ReviewPanel(p: Props) {
         {p.can.decide && (
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => setOpen("SELECTED")} disabled={!canAct || pending} className="bg-success text-success-foreground hover:bg-success/90">
-              <CheckCircle2 /> {decided ? "Change to Selected" : "Select candidate"}
+              <CheckCircle2 /> {decided ? "Change to Verified" : "Verify candidate"}
             </Button>
             <Button variant="destructive" onClick={() => setOpen("REJECTED")} disabled={!canAct || pending}>
               <XCircle /> {decided ? "Change to Rejected" : "Reject candidate"}

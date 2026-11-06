@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 
 const STYLES: Record<string, { label: string; className: string }> = {
   PENDING_REVIEW: { label: "Pending review", className: "bg-muted text-muted-foreground" },
-  SELECTED: { label: "Selected", className: "bg-success/10 text-success" },
+  SELECTED: { label: "Verified", className: "bg-success/10 text-success" },
   REJECTED: { label: "Rejected", className: "bg-destructive/10 text-destructive" },
 };
 

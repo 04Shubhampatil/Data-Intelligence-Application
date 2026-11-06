@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 const STATUS = [
   { value: "PENDING_REVIEW", label: "Pending" },
-  { value: "SELECTED", label: "Selected" },
+  { value: "SELECTED", label: "Verified" },
   { value: "REJECTED", label: "Rejected" },
 ];
 

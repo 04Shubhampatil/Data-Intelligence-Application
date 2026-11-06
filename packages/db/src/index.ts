@@ -28,10 +28,20 @@ function createClient() {
   return new PrismaClient({ adapter: adapterFromUrl(url) });
 }
 
-const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
+const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient; prismaClass?: typeof PrismaClient };
 
-/** Singleton — avoids exhausting connections during Next.js hot reload. */
+/**
+ * Singleton — avoids exhausting connections during Next.js hot reload. After `prisma generate` (a schema
+ * change) the dev server recompiles this module with a NEW PrismaClient class; the cached instance would
+ * still validate against the old schema (e.g. reject a new enum value), so it is replaced. In production
+ * the class never changes and the one instance is kept.
+ */
 function getClient(): PrismaClient {
+  if (globalForPrisma.prisma && globalForPrisma.prismaClass !== PrismaClient) {
+    void globalForPrisma.prisma.$disconnect().catch(() => {});
+    globalForPrisma.prisma = undefined;
+  }
+  globalForPrisma.prismaClass = PrismaClient;
   return (globalForPrisma.prisma ??= createClient());
 }
 

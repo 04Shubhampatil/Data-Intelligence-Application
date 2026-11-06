@@ -334,6 +334,9 @@ enum DocumentKind {
   RATION_CARD
   RESIDENCE_PROOF
   EXPERIENCE_LETTER
+  // resourcedata.in / mahahrd.com upload folders "graduation" and "pg" (2026-11-03)
+  GRADUATION_CERTIFICATE
+  POSTGRADUATION_CERTIFICATE
 }
 
 enum DocumentStatus {

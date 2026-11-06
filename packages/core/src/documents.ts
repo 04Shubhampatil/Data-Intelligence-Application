@@ -3,6 +3,7 @@ export const DOCUMENT_KINDS = [
   "PROFILE_PHOTO", "RESUME", "A_FORM", "SSC_CERTIFICATE", "HSC_CERTIFICATE", "OTHER_CERTIFICATE",
   "AADHAAR_FRONT", "AADHAAR_BACK", "PAN", "BANK_PASSBOOK", "OTHER",
   "VOTER_ID", "PASSPORT", "DRIVING_LICENCE", "RATION_CARD", "RESIDENCE_PROOF", "EXPERIENCE_LETTER",
+  "GRADUATION_CERTIFICATE", "POSTGRADUATION_CERTIFICATE",
 ] as const;
 export type DocumentKind = (typeof DOCUMENT_KINDS)[number];
 
@@ -18,6 +19,8 @@ export const DOCUMENT_DEFS: Record<DocumentKind, { label: string; category: Docu
   A_FORM: { label: "A Form", category: "employment", identity: false, defaultAllowed: true },
   SSC_CERTIFICATE: { label: "SSC certificate", category: "education", identity: false, defaultAllowed: true },
   HSC_CERTIFICATE: { label: "HSC certificate", category: "education", identity: false, defaultAllowed: true },
+  GRADUATION_CERTIFICATE: { label: "Graduation certificate", category: "education", identity: false, defaultAllowed: true },
+  POSTGRADUATION_CERTIFICATE: { label: "Postgraduate certificate", category: "education", identity: false, defaultAllowed: true },
   OTHER_CERTIFICATE: { label: "Other certificate", category: "education", identity: false, defaultAllowed: true, repeatable: true },
   EXPERIENCE_LETTER: { label: "Experience letter", category: "employment", identity: false, defaultAllowed: true, repeatable: true },
   AADHAAR_FRONT: { label: "Aadhaar (front)", category: "identity", identity: true, defaultAllowed: false },

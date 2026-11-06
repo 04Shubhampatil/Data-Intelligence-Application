@@ -157,3 +157,53 @@ export async function getViewerQueue(user: CurrentUser, status: "PENDING_REVIEW"
   const photos = await profilePhotoUrls(rows.map((r) => r.id), user);
   return { total, rows: rows.map((r) => ({ ...r, photoUrl: photos.get(r.id) ?? null })), page, pageSize: PAGE, pageCount: Math.max(1, Math.ceil(total / PAGE)) };
 }
+
+const VERIFIED_PAGE = 10;
+
+/**
+ * Verified Records on the District Dashboard: only candidates whose current decision is
+ * Verified (stored as SELECTED) and no longer waiting for confirmation, inside the user's districts.
+ */
+export async function getVerifiedRecords(user: CurrentUser, opts: { page?: number; q?: string } = {}) {
+  const page = Math.max(1, Math.floor(opts.page ?? 1) || 1);
+  const q = opts.q?.trim().slice(0, 80) || undefined;
+  const where: Prisma.CandidateWhereInput = {
+    isDeletedAtSource: false,
+    ...candidateScope(user),
+    reviewStatus: "SELECTED",
+    reviewPendingConfirmation: false,
+    ...(q
+      ? { OR: [{ fullName: { contains: q } }, { sourceEmployeeCode: { equals: q.toUpperCase() } }, { officialEmployeeId: { equals: q.replace(/\s+/g, "").toUpperCase() } }] }
+      : {}),
+  };
+  const [total, rows] = await Promise.all([
+    prisma.candidate.count({ where }),
+    prisma.candidate.findMany({
+      where,
+      orderBy: [{ reviewedAt: { sort: "desc", nulls: "last" } }, { fullName: "asc" }],
+      skip: (page - 1) * VERIFIED_PAGE,
+      take: VERIFIED_PAGE,
+      select: {
+        id: true, sourceEmployeeCode: true, officialEmployeeId: true, fullName: true, reviewedAt: true,
+        district: { select: { name: true } },
+        designation: { select: { name: true } },
+        departmentHead: { select: { name: true } },
+        reviews: { where: { decision: "SELECTED" }, orderBy: { createdAt: "desc" }, take: 1, select: { createdAt: true, reviewedBy: { select: { name: true, email: true } } } },
+      },
+    }),
+  ]);
+  const photos = await profilePhotoUrls(rows.map((r) => r.id), user);
+  return {
+    total,
+    q: q ?? "",
+    rows: rows.map(({ reviews, ...r }) => ({
+      ...r,
+      photoUrl: photos.get(r.id) ?? null,
+      verifiedBy: reviews[0] ? (reviews[0].reviewedBy.name ?? reviews[0].reviewedBy.email) : null,
+      verifiedAt: r.reviewedAt ?? reviews[0]?.createdAt ?? null,
+    })),
+    page,
+    pageSize: VERIFIED_PAGE,
+    pageCount: Math.max(1, Math.ceil(total / VERIFIED_PAGE)),
+  };
+}

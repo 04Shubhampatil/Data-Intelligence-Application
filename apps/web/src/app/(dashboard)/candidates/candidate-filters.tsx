@@ -12,7 +12,7 @@ import type { FilterOptions, Option } from "@/server/services/lookup.service";
 const FILTER_KEYS = ["districtId", "departmentHeadId", "departmentId", "subProjectId", "designationId", "employeeType", "gender", "educationType", "reviewStatus"] as const;
 const REVIEW_OPTIONS: Option[] = [
   { value: "PENDING_REVIEW", label: "Pending review" },
-  { value: "SELECTED", label: "Selected" },
+  { value: "SELECTED", label: "Verified" },
   { value: "REJECTED", label: "Rejected" },
   { value: "AWAITING_CONFIRMATION", label: "Awaiting confirmation" },
 ];

@@ -37,10 +37,20 @@ export async function eraseCandidateAction(_prev: RetentionState, formData: Form
   const user = await requireUser("settings:write");
   const parsed = eraseSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid input." };
-  const source = await prisma.sourceConnection.findFirst({ where: { isActive: true, adapterKey: { not: "synthetic" } }, select: { id: true } });
-  if (!source) return { error: "No source connection." };
+  // Every source connection, so an erased employee cannot come back through any of them.
+  const sources = await prisma.sourceConnection.findMany({ where: { adapterKey: { not: "synthetic" } }, select: { id: true } });
+  if (!sources.length) return { error: "No source connection." };
 
-  const r = await eraseCandidate({ sourceConnectionId: source.id, sourceEmployeeCode: parsed.data.code, reason: parsed.data.reason, userId: user.id });
+  const results = [];
+  for (const source of sources) {
+    results.push(await eraseCandidate({ sourceConnectionId: source.id, sourceEmployeeCode: parsed.data.code, reason: parsed.data.reason, userId: user.id }));
+  }
+  const r = {
+    code: results[0].code,
+    deletedCandidate: results.some((x) => x.deletedCandidate),
+    syncRecords: results.reduce((n, x) => n + x.syncRecords, 0),
+    syncErrors: results.reduce((n, x) => n + x.syncErrors, 0),
+  };
   // The code itself is the only identifier kept (needed to block re-import); no name or other data.
   await audit("ERASURE", { userId: user.id, target: r.code, metadata: { deletedCandidate: r.deletedCandidate, syncRecords: r.syncRecords, syncErrors: r.syncErrors } });
   revalidatePath("/settings");
@@ -56,9 +66,8 @@ export async function eraseCandidateAction(_prev: RetentionState, formData: Form
 export async function unsuppressAction(code: string) {
   const user = await requireUser("settings:write");
   const c = z.string().regex(/^[A-Z]{1,4}\d{1,10}$/).parse(code.toUpperCase());
-  const source = await prisma.sourceConnection.findFirst({ where: { isActive: true, adapterKey: { not: "synthetic" } }, select: { id: true } });
-  if (!source) return;
-  await unsuppress(source.id, c);
+  const sources = await prisma.sourceConnection.findMany({ where: { adapterKey: { not: "synthetic" } }, select: { id: true } });
+  for (const source of sources) await unsuppress(source.id, c);
   await audit("SETTINGS_UPDATE", { userId: user.id, target: c, metadata: { action: "unblock" } });
   revalidatePath("/settings");
 }

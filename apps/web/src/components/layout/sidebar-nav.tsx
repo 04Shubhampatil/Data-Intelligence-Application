@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ClipboardCheck, FileBarChart, LayoutDashboard, Mail, MapPin, RefreshCw, Settings, Sparkles, Users, type LucideIcon } from "lucide-react";
+import { BadgeCheck, ClipboardCheck, FileBarChart, LayoutDashboard, Mail, MapPin, RefreshCw, Settings, Sparkles, Users, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { NavItem } from "@/lib/rbac";
 
@@ -14,6 +14,7 @@ const ICONS: Record<string, LucideIcon> = {
   "file-bar-chart": FileBarChart,
   settings: Settings,
   "map-pin": MapPin,
+  "badge-check": BadgeCheck,
   mail: Mail,
   "clipboard-check": ClipboardCheck,
 };

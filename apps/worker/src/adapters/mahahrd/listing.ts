@@ -5,30 +5,49 @@ import { MAHAHRD } from "./config";
 
 type ListingJson = { recordsTotal: number; recordsFiltered: number; data: Record<string, unknown>[] };
 
+/** What the records table looks like (columns, headers, row keys, mapped fields). */
+export type ListingSpec = {
+  table: string;
+  endpoint: string;
+  expectedColumns: readonly (string | null)[];
+  expectedHeaders: readonly string[];
+  requiredRowKeys: readonly string[];
+  fieldMap: Readonly<Record<string, string>>;
+};
+
+export const MAHAHRD_LISTING: ListingSpec = {
+  table: MAHAHRD.listing.table,
+  endpoint: MAHAHRD.paths.listingEndpoint,
+  expectedColumns: MAHAHRD.listing.expectedColumns,
+  expectedHeaders: MAHAHRD.listing.expectedHeaders,
+  requiredRowKeys: MAHAHRD.listing.requiredRowKeys,
+  fieldMap: MAHAHRD.listingFieldMap,
+};
+
 /** Maps one listing JSON row to our field names. Unknown/sensitive keys are never copied. */
-export function mapListingRow(row: Record<string, unknown>): RawRecord {
+export function mapListingRow(row: Record<string, unknown>, spec: ListingSpec = MAHAHRD_LISTING): RawRecord {
   const out: RawRecord = {};
-  for (const [srcKey, field] of Object.entries(MAHAHRD.listingFieldMap)) {
+  for (const [srcKey, field] of Object.entries(spec.fieldMap) as [string, keyof RawRecord][]) {
     if (srcKey in row) out[field] = row[srcKey];
   }
   return out;
 }
 
 /** Throws LAYOUT_CHANGED if the table or its data contract no longer matches the adapter. */
-export function checkListingContract(meta: { columns: (string | null)[]; ajaxUrl: string; headers: string[] }, sampleRow?: Record<string, unknown>) {
+export function checkListingContract(meta: { columns: (string | null)[]; ajaxUrl: string; headers: string[] }, sampleRow?: Record<string, unknown>, spec: ListingSpec = MAHAHRD_LISTING) {
   const problems: string[] = [];
-  if (JSON.stringify(meta.columns) !== JSON.stringify(MAHAHRD.listing.expectedColumns)) problems.push("column keys changed");
-  if (!meta.ajaxUrl.endsWith(MAHAHRD.paths.listingEndpoint)) problems.push("listing endpoint changed");
+  if (JSON.stringify(meta.columns) !== JSON.stringify(spec.expectedColumns)) problems.push("column keys changed");
+  if (!meta.ajaxUrl.endsWith(spec.endpoint)) problems.push("listing endpoint changed");
   const norm = (s: string) => s.replace(/\s+/g, "").toLowerCase();
-  if (JSON.stringify(meta.headers.map(norm)) !== JSON.stringify(MAHAHRD.listing.expectedHeaders.map(norm))) problems.push("table headers changed");
+  if (JSON.stringify(meta.headers.map(norm)) !== JSON.stringify(spec.expectedHeaders.map(norm))) problems.push("table headers changed");
   if (sampleRow) {
-    const missing = MAHAHRD.listing.requiredRowKeys.filter((k) => !(k in sampleRow));
+    const missing = spec.requiredRowKeys.filter((k) => !(k in sampleRow));
     if (missing.length) problems.push(`row keys missing: ${missing.join(", ")}`);
   }
   if (problems.length) throw new AdapterError("LAYOUT_CHANGED", `Source layout no longer matches the adapter (${problems.join("; ")})`);
 }
 
-export async function openListing(page: Page, baseUrl: string) {
+export async function openListing(page: Page, baseUrl: string, spec: ListingSpec = MAHAHRD_LISTING) {
   await gotoWithRetry(page, new URL(MAHAHRD.paths.listing, baseUrl).toString());
   const path = new URL(page.url()).pathname;
   if (!path.startsWith(MAHAHRD.paths.listing)) {
@@ -41,7 +60,7 @@ export async function openListing(page: Page, baseUrl: string) {
         const w = window as unknown as { jQuery?: any };
         return !!w.jQuery?.fn?.dataTable && w.jQuery(sel).DataTable().ajax.json() != null;
       },
-      MAHAHRD.listing.table,
+      spec.table,
       { timeout: 90_000 },
     )
     .catch(() => {
@@ -61,9 +80,9 @@ export async function openListing(page: Page, baseUrl: string) {
       total: Number(dt.ajax.json()?.recordsTotal ?? 0),
       sample: (dt.ajax.json()?.data?.[0] ?? undefined) as Record<string, unknown> | undefined,
     };
-  }, MAHAHRD.listing.table);
+  }, spec.table);
 
-  checkListingContract(meta, meta.sample);
+  checkListingContract(meta, meta.sample, spec);
   return { total: meta.total };
 }
 
@@ -75,6 +94,7 @@ export async function openListing(page: Page, baseUrl: string) {
 export async function fetchListingPage(
   page: Page,
   opts: { start: number; length: number; searchText?: string; params?: Record<string, string> },
+  spec: ListingSpec = MAHAHRD_LISTING,
 ): Promise<ListingJson> {
   return page.evaluate(
     ({ sel, start, length, searchText, params }) =>
@@ -88,7 +108,7 @@ export async function fetchListingPage(
           .done((json: ListingJson) => resolve(json))
           .fail((xhr: { status: number }) => reject(new Error(`Listing request failed (HTTP ${xhr.status})`)));
       }),
-    { sel: MAHAHRD.listing.table, start: opts.start, length: opts.length, searchText: opts.searchText, params: opts.params },
+    { sel: spec.table, start: opts.start, length: opts.length, searchText: opts.searchText, params: opts.params },
   );
 }
 

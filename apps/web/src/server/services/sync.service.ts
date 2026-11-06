@@ -7,8 +7,9 @@ export type SourceFilterOption = { value: string; label: string };
 export async function getSources() {
   const sources = await prisma.sourceConnection.findMany({
     where: { isActive: true, adapterKey: { not: "synthetic" } },
+    orderBy: { createdAt: "asc" }, // the primary source (MahaHRD) first
     select: {
-      id: true, name: true, baseUrl: true, authMode: true, sessionSavedAt: true, lastSyncedAt: true, sourceFilters: true,
+      id: true, name: true, adapterKey: true, baseUrl: true, authMode: true, sessionSavedAt: true, lastSyncedAt: true, sourceFilters: true,
       fieldPolicies: { select: { fieldKey: true, allowed: true }, orderBy: { fieldKey: "asc" } },
     },
   });

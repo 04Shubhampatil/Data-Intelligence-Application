@@ -25,7 +25,7 @@ export const metadata: Metadata = { title: "My reviews" };
 
 const TABS = [
   { key: "PENDING_REVIEW", label: "Pending" },
-  { key: "SELECTED", label: "Selected" },
+  { key: "SELECTED", label: "Verified" },
   { key: "REJECTED", label: "Rejected" },
   { key: "ALL", label: "All" },
 ] as const;
@@ -79,7 +79,7 @@ export default async function ReviewQueuePage({ searchParams }: PageProps<"/revi
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Stat label="Candidates available" value={counts.total} icon={UsersRound} tone="bg-accent text-brand-navy" />
         <Stat label="Pending review" value={counts.pending} icon={Clock} tone="bg-muted text-muted-foreground" />
-        <Stat label="Selected" value={counts.selected} icon={CheckCircle2} tone="bg-success/10 text-success" />
+        <Stat label="Verified" value={counts.selected} icon={CheckCircle2} tone="bg-success/10 text-success" />
         <Stat label="Rejected" value={counts.rejected} icon={XCircle} tone="bg-destructive/10 text-destructive" />
       </div>
 

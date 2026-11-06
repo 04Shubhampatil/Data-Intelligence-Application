@@ -19,6 +19,7 @@ import { canOpenDashboard, homeFor } from "@/lib/rbac";
 import { composeOptions, listThreads } from "@/server/services/message.service";
 import { ComposeDialog } from "@/app/(dashboard)/messages/compose-dialog";
 import { MessageKindBadge } from "@/components/message-kind-badge";
+import { decisionWord } from "@/lib/review-labels";
 
 export const metadata: Metadata = { title: "District dashboard" };
 
@@ -62,7 +63,6 @@ export default async function DistrictDashboardPage({ searchParams }: PageProps<
     next.set("page", String(page));
     return `/district?${next.toString()}`;
   };
-
   return (
     <>
       <PageHeader
@@ -73,7 +73,7 @@ export default async function DistrictDashboardPage({ searchParams }: PageProps<
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <Stat label="District candidates" value={counts.total} icon={UsersRound} tone="bg-accent text-brand-navy" href="/district" />
         <Stat label="Pending review" value={counts.pending} icon={Clock} tone="bg-muted text-muted-foreground" href="/district?reviewStatus=PENDING_REVIEW" />
-        <Stat label="Selected" value={counts.selected} icon={CheckCircle2} tone="bg-success/10 text-success" href="/district?reviewStatus=SELECTED" />
+        <Stat label="Verified" value={counts.selected} icon={CheckCircle2} tone="bg-success/10 text-success" href="/district?reviewStatus=SELECTED" />
         <Stat label="Rejected" value={counts.rejected} icon={XCircle} tone="bg-destructive/10 text-destructive" href="/district?reviewStatus=REJECTED" />
         <Stat label="Awaiting confirmation" value={counts.awaiting} icon={ShieldCheck} tone="bg-brand-orange/15 text-brand-orange" href="/district?reviewStatus=AWAITING_CONFIRMATION" />
         <Stat label="District Viewers" value={viewers.length} icon={Users} tone="bg-accent text-brand-teal" />
@@ -191,7 +191,7 @@ export default async function DistrictDashboardPage({ searchParams }: PageProps<
                         <p>
                           <span className="font-medium">{a.r.reviewedBy.name ?? a.r.reviewedBy.email}</span> {a.r.isOverride ? "changed" : "marked"}{" "}
                           <Link href={`/candidates/${a.r.candidate.id}`} className="text-primary hover:underline">{a.r.candidate.fullName}</Link> as{" "}
-                          <span className={a.r.decision === "SELECTED" ? "font-semibold text-success" : "font-semibold text-destructive"}>{a.r.decision.toLowerCase()}</span>
+                          <span className={a.r.decision === "SELECTED" ? "font-semibold text-success" : "font-semibold text-destructive"}>{decisionWord(a.r.decision)}</span>
                           {a.r.requiresConfirmation && !a.r.confirmedAt && <span className="text-brand-orange"> · awaiting confirmation</span>}
                         </p>
                         <p className="text-xs text-muted-foreground">{relativeTime(a.r.createdAt)}</p>

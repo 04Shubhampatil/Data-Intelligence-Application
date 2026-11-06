@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { decideAction } from "@/app/(dashboard)/candidates/[id]/review-actions";
 
-/** Select / Reject straight from the viewer's list. Same server action and rules as the detail page. */
+/** Verify / Reject straight from the viewer's list. Same server action and rules as the detail page. */
 export function QuickDecision({ candidateId, candidateName, disabled, twoStep }: { candidateId: string; candidateName: string; disabled: boolean; twoStep: boolean }) {
   const [open, setOpen] = useState<"SELECTED" | "REJECTED" | null>(null);
   const [remark, setRemark] = useState("");
@@ -31,7 +31,7 @@ export function QuickDecision({ candidateId, candidateName, disabled, twoStep }:
     <>
       <div className="flex gap-1.5">
         <Button size="sm" variant="outline" disabled={disabled || pending} onClick={() => setOpen("SELECTED")} className="text-success hover:bg-success/10">
-          <CheckCircle2 /> Select
+          <CheckCircle2 /> Verify
         </Button>
         <Button size="sm" variant="outline" disabled={disabled || pending} onClick={() => setOpen("REJECTED")} className="text-destructive hover:bg-destructive/10">
           <XCircle /> Reject
@@ -43,7 +43,7 @@ export function QuickDecision({ candidateId, candidateName, disabled, twoStep }:
             <input type="hidden" name="candidateId" value={candidateId} />
             <input type="hidden" name="decision" value={open ?? ""} />
             <AlertDialogHeader>
-              <AlertDialogTitle>{open === "SELECTED" ? "Select" : "Reject"} {candidateName}?</AlertDialogTitle>
+              <AlertDialogTitle>{open === "SELECTED" ? "Verify" : "Reject"} {candidateName}?</AlertDialogTitle>
               <AlertDialogDescription>
                 {open === "REJECTED" ? "A reason is required for rejection." : "You can add an optional comment."}
                 {twoStep ? " The decision will wait for District Admin confirmation." : ""}

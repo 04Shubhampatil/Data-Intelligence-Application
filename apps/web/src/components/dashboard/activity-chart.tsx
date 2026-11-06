@@ -6,7 +6,7 @@ export type ActivityPoint = { month: string; synced: number; selected: number; r
 
 const SERIES = [
   { key: "synced", label: "Synced", color: "#2563EB" },
-  { key: "selected", label: "Selected", color: "#0E7C3A" },
+  { key: "selected", label: "Verified", color: "#0E7C3A" },
   { key: "rejected", label: "Rejected", color: "#F28B82" },
 ] as const;
 
@@ -85,7 +85,7 @@ export function ActivityChart({ data }: { data: ActivityPoint[] }) {
         </table>
       ) : (
         <div className="relative">
-          <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label="Monthly candidate activity: synced, selected and rejected">
+          <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label="Monthly candidate activity: synced, verified and rejected">
             {ticks.map((t) => (
               <g key={t}>
                 <line x1={m.left} x2={W - m.right} y1={y(t)} y2={y(t)} stroke="var(--border)" strokeWidth={1} />

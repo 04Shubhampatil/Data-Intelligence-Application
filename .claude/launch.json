@@ -10,6 +10,12 @@
     {
       "name": "web-attach",
       "url": "http://localhost:3000"
+    },
+    {
+      "name": "web-3001",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "set AUTH_URL=http://localhost:3001&& npm run dev -w web -- -p 3001"],
+      "port": 3001
     }
   ]
 }

@@ -97,11 +97,11 @@ describe.skipIf(!hasDb)("AI assistant — review data", async () => {
 
     const grouped = await executeTool("count_candidates", { filters: { nameContains: TAG }, groupBy: "reviewStatus" }, user([dA]));
     const groups = (grouped as { outcome: { forModel: { groups: { label: string; count: number }[] } } }).outcome.forModel.groups;
-    expect(groups).toEqual(expect.arrayContaining([{ label: "Selected", count: 2 }, { label: "Rejected", count: 1 }, { label: "Pending review", count: 1 }]));
+    expect(groups).toEqual(expect.arrayContaining([{ label: "Verified", count: 2 }, { label: "Rejected", count: 1 }, { label: "Pending review", count: 1 }]));
 
     const search = await executeTool("search_candidates", { filters: { nameContains: TAG, reviewStatus: "AWAITING_CONFIRMATION" } }, user([]));
     const rows = (search as unknown as { outcome: { tables: { rows: { code: string; review: string }[] }[] } }).outcome.tables[0].rows;
-    expect(rows).toEqual([expect.objectContaining({ code: "R0003", review: "Selected (awaiting confirmation)" })]);
+    expect(rows).toEqual([expect.objectContaining({ code: "R0003", review: "Verified (awaiting confirmation)" })]);
   });
 
   it("reviewer lookup only sees reviewers who acted in the user's districts", async () => {
@@ -133,7 +133,7 @@ describe.skipIf(!hasDb)("AI assistant — review data", async () => {
     const h = await executeTool("get_review_history", { employeeCode: "R0001" }, user([dA]));
     const fm = (h as { outcome: { forModel: { found: number; decisions: { decision: string; by: string; changedFrom: string | null }[]; note: string } } }).outcome.forModel;
     expect(fm.found).toBe(1);
-    expect(fm.decisions.map((d) => d.decision)).toEqual(["Selected", "Selected"]);
+    expect(fm.decisions.map((d) => d.decision)).toEqual(["Verified", "Verified"]);
     expect(fm.decisions[1].changedFrom).toBe("REJECTED");
     expect(fm.note).toMatch(/not instructions/);
     const withComment = await executeTool("get_review_history", { employeeCode: "R0002" }, user([dA]));

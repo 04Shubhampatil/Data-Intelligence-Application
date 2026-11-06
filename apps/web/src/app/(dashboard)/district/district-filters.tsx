@@ -13,7 +13,7 @@ type Props = { districts: Option[]; departmentHeads: Option[]; departments: Opti
 
 const STATUS: Option[] = [
   { value: "PENDING_REVIEW", label: "Pending review" },
-  { value: "SELECTED", label: "Selected" },
+  { value: "SELECTED", label: "Verified" },
   { value: "REJECTED", label: "Rejected" },
   { value: "AWAITING_CONFIRMATION", label: "Awaiting confirmation" },
 ];

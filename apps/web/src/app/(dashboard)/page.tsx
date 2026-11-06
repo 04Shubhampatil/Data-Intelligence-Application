@@ -130,7 +130,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Total Candidates" value={total} icon={Users} tint="bg-blue-100 text-blue-700" color={C.total} trend={o.stats.total.trend} series={o.stats.total.series} months={months} />
         <StatCard label="Pending Review" value={o.stats.pending.value} icon={Eye} tint="bg-sky-100 text-sky-700" color={C.pending} trend={o.stats.pending.trend} series={o.stats.pending.series} months={months} goodWhenUp={false} />
-        <StatCard label="Selected" value={o.stats.selected.value} icon={CheckCircle2} tint="bg-emerald-100 text-emerald-700" color={C.selected} trend={o.stats.selected.trend} series={o.stats.selected.series} months={months} />
+        <StatCard label="Verified" value={o.stats.selected.value} icon={CheckCircle2} tint="bg-emerald-100 text-emerald-700" color={C.selected} trend={o.stats.selected.trend} series={o.stats.selected.series} months={months} />
         <StatCard label="Rejected" value={o.stats.rejected.value} icon={XCircle} tint="bg-rose-100 text-rose-700" color={C.rejected} trend={o.stats.rejected.trend} series={o.stats.rejected.series} months={months} goodWhenUp={false} />
       </div>
 
@@ -175,7 +175,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
               total={total}
               slices={[
                 { label: "Pending", value: o.stats.pending.value, color: C.pending },
-                { label: "Selected", value: o.stats.selected.value, color: C.selected },
+                { label: "Verified", value: o.stats.selected.value, color: C.selected },
                 { label: "Rejected", value: o.stats.rejected.value, color: C.rejected },
               ]}
             />

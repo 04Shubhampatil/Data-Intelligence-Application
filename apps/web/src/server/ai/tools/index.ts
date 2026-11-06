@@ -8,6 +8,7 @@ import { GROUP_BY, REVIEW_TOOLS, TOOL_ALIASES, TOOL_NAMES, toolSchemas, type Gro
 import { describeFilters, filtersToWhere, FilterResolutionError, istDayEnd, istDayStart, resolveReviewer } from "./resolve";
 import { groupCandidates } from "@/server/services/report.service";
 import { candidateScope, lookupScope } from "@/server/auth/scope";
+import { decisionLabel } from "@/lib/review-labels";
 
 /** A table the UI renders directly (never passes through the model). */
 export type ResultTable = {
@@ -63,7 +64,7 @@ export const TABLE_COLUMNS = [
 
 /** Human label for the current review state (shared by tables, exports and the model projection). */
 export function reviewLabel(r: { reviewStatus: string; reviewPendingConfirmation: boolean }) {
-  const base = r.reviewStatus === "PENDING_REVIEW" ? "Pending review" : r.reviewStatus === "SELECTED" ? "Selected" : r.reviewStatus === "REJECTED" ? "Rejected" : r.reviewStatus;
+  const base = r.reviewStatus === "PENDING_REVIEW" ? "Pending review" : r.reviewStatus === "SELECTED" ? "Verified" : r.reviewStatus === "REJECTED" ? "Rejected" : r.reviewStatus;
   return r.reviewPendingConfirmation ? `${base} (awaiting confirmation)` : base;
 }
 
@@ -201,7 +202,7 @@ const handlers: { [N in ToolName]: Handler<N> } = {
     const [job, total, lastSync] = await Promise.all([
       prisma.syncJob.findFirst({ orderBy: { createdAt: "desc" }, select: { status: true, processed: true, totalRecords: true, created: true, updated: true, unchanged: true, failed: true, startedAt: true, finishedAt: true, filters: true } }),
       prisma.candidate.count({ where: { isDeletedAtSource: false, ...scope } }),
-      prisma.sourceConnection.findFirst({ where: { isActive: true }, select: { lastSyncedAt: true, name: true } }),
+      prisma.sourceConnection.findFirst({ where: { isActive: true, lastSyncedAt: { not: null } }, orderBy: { lastSyncedAt: "desc" }, select: { lastSyncedAt: true, name: true } }),
     ]);
     const summary = { totalRecords: total, source: lastSync?.name, lastSyncedAt: lastSync?.lastSyncedAt?.toISOString() ?? null, latestJob: job };
     return {
@@ -254,7 +255,7 @@ const handlers: { [N in ToolName]: Handler<N> } = {
     let groups: { label: string; count: number }[] = [];
     if (args.groupBy === "decision") {
       const g = await prisma.candidateReview.groupBy({ by: ["decision"], where, _count: { _all: true } });
-      groups = g.map((x) => ({ label: x.decision === "SELECTED" ? "Selected" : "Rejected", count: x._count._all }));
+      groups = g.map((x) => ({ label: decisionLabel(x.decision), count: x._count._all }));
     } else if (args.groupBy === "reviewer") {
       const g = await prisma.candidateReview.groupBy({ by: ["reviewedById"], where, _count: { _all: true } });
       const people = await prisma.user.findMany({ where: { id: { in: g.map((x) => x.reviewedById) } }, select: { id: true, name: true, email: true } });
@@ -296,7 +297,7 @@ const handlers: { [N in ToolName]: Handler<N> } = {
     const at = (d: Date) => d.toLocaleString("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" });
     const decisions = c.reviews.map((r) => ({
       when: at(r.createdAt),
-      decision: r.decision === "SELECTED" ? "Selected" : "Rejected",
+      decision: decisionLabel(r.decision),
       by: who(r.reviewedBy),
       byRole: r.reviewedBy.role.name,
       changedFrom: r.isOverride ? r.previousStatus : null,

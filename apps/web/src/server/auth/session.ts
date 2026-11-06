@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { prisma, parsePermissions, type Permission } from "@di/db";
 import { effectivePermissions } from "@di/db/permissions";
 import { auth } from "@/auth";
-import { hasPermission } from "@/lib/rbac";
+import { districtScopeFor, hasPermission } from "@/lib/rbac";
 
 export type CurrentUser = {
   id: string;
@@ -12,7 +12,7 @@ export type CurrentUser = {
   name: string | null;
   role: string;
   permissions: Permission[];
-  districtScopeIds: string[]; // empty = unrestricted
+  districtScopeIds: string[]; // empty = unrestricted (global roles only; see districtScopeFor)
 };
 
 /**
@@ -45,7 +45,8 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
     role: user.role.name,
     // Super Admin-only permissions (decisions, review comments) are removed for every other role here.
     permissions: effectivePermissions(user.role.name, parsePermissions(user.role.permissions)),
-    districtScopeIds: user.districtAssignments.map((d) => d.districtId),
+    // A District Admin/Viewer without an assigned district sees no records instead of all districts.
+    districtScopeIds: districtScopeFor(user.role.name, user.districtAssignments.map((d) => d.districtId)),
   };
 });
 

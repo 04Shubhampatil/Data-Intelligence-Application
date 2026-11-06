@@ -29,6 +29,7 @@ import { prisma } from "@di/db";
 import { formatDate, formatDateTime, roleLabel } from "@/lib/format";
 import { experienceMonths, formatExperience, highestQualification } from "@/lib/experience";
 import { hasPermission } from "@/lib/rbac";
+import { decisionLabel } from "@/lib/review-labels";
 
 export const metadata: Metadata = { title: "Candidate profile" };
 
@@ -114,7 +115,7 @@ export default async function CandidateDetailPage({ params, searchParams }: Page
     ...(c.profileSyncedAt ? [{ at: c.profileSyncedAt, text: "Profile synced from MAHAHRD", tone: "primary" as const }] : []),
     ...(c.documentsSyncedAt ? [{ at: c.documentsSyncedAt, text: "Documents synced", tone: "primary" as const }] : []),
     ...(tickets ?? []).map((t) => ({ at: t.syncedAt, text: `Ticket ${t.ticketNumber ?? ""} · ${t.subject ?? ""}`.trim(), tone: "muted" as const })),
-    ...timeline.reviews.map((r) => ({ at: r.createdAt, text: `${r.decision === "SELECTED" ? "Selected" : "Rejected"} by ${r.reviewedBy.name ?? r.reviewedBy.email}`, tone: r.decision === "SELECTED" ? ("success" as const) : ("danger" as const) })),
+    ...timeline.reviews.map((r) => ({ at: r.createdAt, text: `${decisionLabel(r.decision)} by ${r.reviewedBy.name ?? r.reviewedBy.email}`, tone: r.decision === "SELECTED" ? ("success" as const) : ("danger" as const) })),
     ...timeline.comments.map((m) => ({ at: m.createdAt, text: `Comment by ${m.author.name ?? m.author.email}`, tone: "muted" as const })),
     { at: c.createdAt, text: "Record first synced", tone: "muted" as const },
   ].sort((a, b) => b.at.getTime() - a.at.getTime());
@@ -160,7 +161,7 @@ export default async function CandidateDetailPage({ params, searchParams }: Page
                   status: c.reviewStatus,
                   updated: c.reviewUpdated,
                   pendingConfirmation: c.reviewPendingConfirmation,
-                  latest: latestReview ? { label: latestReview.decision === "SELECTED" ? "Selected" : "Rejected", by: latestReview.reviewedBy.name ?? latestReview.reviewedBy.email, at: formatDateTime(latestReview.createdAt) } : null,
+                  latest: latestReview ? { label: decisionLabel(latestReview.decision), by: latestReview.reviewedBy.name ?? latestReview.reviewedBy.email, at: formatDateTime(latestReview.createdAt) } : null,
                 }
               : null
           }

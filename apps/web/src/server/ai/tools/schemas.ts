@@ -23,7 +23,7 @@ export const aiFilterSchema = z
     reviewStatus: z
       .enum(AI_REVIEW_STATUSES)
       .optional()
-      .describe("Current review decision: PENDING_REVIEW (not yet decided), SELECTED, REJECTED, or AWAITING_CONFIRMATION (a District Viewer decision a District Admin has not confirmed yet)"),
+      .describe("Current review decision: PENDING_REVIEW (not yet decided), SELECTED (shown to users as 'Verified'), REJECTED, or AWAITING_CONFIRMATION (a District Viewer decision a District Admin has not confirmed yet)"),
     reviewedBy: name(80).optional().describe("Name or email of the person who recorded a decision on the candidate"),
     reviewedFrom: day.optional().describe("Latest decision on or after this date (YYYY-MM-DD, India time)"),
     reviewedTo: day.optional().describe("Latest decision on or before this date (YYYY-MM-DD, India time)"),
@@ -52,7 +52,7 @@ export const toolSchemas = {
       groupBy: z.enum(GROUP_BY).optional().describe("Group the count by this field (reviewStatus = current decision)"),
     })
     .strict()
-    .describe("Count candidates matching filters, optionally grouped (e.g. count by district, or by reviewStatus for selected/rejected/pending)."),
+    .describe("Count candidates matching filters, optionally grouped (e.g. count by district, or by reviewStatus for verified/rejected/pending)."),
 
   get_candidate_details: z
     .object({

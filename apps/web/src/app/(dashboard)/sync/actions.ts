@@ -8,6 +8,7 @@ import { enqueueJob, hasActiveJob } from "@di/db/sync-queue";
 import { requireUser } from "@/server/auth/session";
 import { audit } from "@/server/security/audit";
 import { getSources, isResumable } from "@/server/services/sync.service";
+import { sourceCommands } from "@/lib/source-commands";
 
 export type ActionState = { ok?: boolean; error?: string; message?: string } | undefined;
 
@@ -27,7 +28,7 @@ export async function startSyncAction(_prev: ActionState, formData: FormData): P
 
   const source = (await getSources()).find((s) => s.id === input.sourceId);
   if (!source) return { error: "Unknown source." };
-  if (!source.sessionSavedAt) return { error: "Not signed in to the source. Run `npm run source:login` first." };
+  if (!source.sessionSavedAt) return { error: `Not signed in to ${source.name}. Run \`${sourceCommands(source.adapterKey).login}\` first.` };
 
   const options = syncOptionsSchema.parse({
     kind: input.scope === "all" ? "full" : "filtered",

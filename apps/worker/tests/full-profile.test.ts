@@ -111,3 +111,13 @@ describe("attendance & tickets mapping", () => {
     }
   });
 });
+
+describe("education uploads", () => {
+  it("graduation and postgraduate certificates are recognised by their upload folders", () => {
+    const page = `<div id="education_info">
+      <img src="https://resourcedata.in/user_data_uploads/graduation/g.jpg"><p class="text-success"><b>Verified</b></p>
+      <a href="https://resourcedata.in/user_data_uploads/pg/pg.pdf">View</a>
+    </div>`;
+    expect(parseProfileDocuments(page).map((d) => [d.kind, d.originalName])).toEqual([["GRADUATION_CERTIFICATE", "g.jpg"], ["POSTGRADUATION_CERTIFICATE", "pg.pdf"]]);
+  });
+});

@@ -10,7 +10,7 @@ const TAG = `ZZDD${Date.now()}`;
 
 describe.skipIf(!hasDb)("district dashboards", async () => {
   const { prisma } = await import("@di/db");
-  const { getDistrictCounts, getReviewTable, getRecentReviewActivity, getReviewerOptions, getViewerQueue, getDistrictViewers, parseReviewFilters } = await import(
+  const { getDistrictCounts, getReviewTable, getRecentReviewActivity, getReviewerOptions, getViewerQueue, getDistrictViewers, getVerifiedRecords, parseReviewFilters } = await import(
     "@/server/services/district.service"
   );
 
@@ -82,5 +82,28 @@ describe.skipIf(!hasDb)("district dashboards", async () => {
     expect(all.rows.map((r) => r.sourceEmployeeCode).sort()).toEqual(["D0001", "D0004"]);
     const byCode = await getViewerQueue(viewer(), "ALL", 1, "d0002");
     expect(byCode.total).toBe(0);
+  });
+  // Runs last: it adds district A candidates that the count assertions above do not expect.
+  it("Verified Records lists only confirmed verified candidates in the admin's districts", async () => {
+    const mk = (code: string, districtId: string, extra: Record<string, unknown>) =>
+      prisma.candidate.create({ data: { sourceConnectionId: sourceId, sourceEmployeeCode: code, fullName: `${TAG} Person ${code}`, districtId, contentHash: "h", lastSyncedAt: new Date(), ...extra } });
+    const ok = await mk("D0005", dA, { reviewStatus: "SELECTED", reviewedAt: new Date(), officialEmployeeId: "PMAY9001" });
+    await prisma.candidateReview.create({ data: { candidateId: ok.id, decision: "SELECTED", remark: "verified", previousStatus: "PENDING_REVIEW", newStatus: "SELECTED", reviewedById: adminId, districtId: dA } });
+    await mk("D0006", dA, { reviewStatus: "REJECTED", reviewedAt: new Date() });
+
+    const v = await getVerifiedRecords(admin(), { q: TAG });
+    // D0001 is verified but still awaiting confirmation; D0002 is another district; D0006 is rejected.
+    expect(v.rows.map((r) => r.sourceEmployeeCode)).toEqual(["D0005"]);
+    expect(v.rows[0]).toMatchObject({ officialEmployeeId: "PMAY9001", verifiedBy: `${TAG}-da@example.test` });
+    expect((await getVerifiedRecords(admin(), { q: "pmay9001" })).total).toBe(1);
+    expect((await getVerifiedRecords(admin(), { q: "D0002" })).total).toBe(0);
+    expect((await getVerifiedRecords(global(), { q: TAG })).rows.map((r) => r.sourceEmployeeCode).sort()).toEqual(["D0002", "D0005"]);
+  });
+  it("every District Admin sees only their own district's verified users", async () => {
+    const { NO_DISTRICT } = await import("@/lib/rbac");
+    const codes = async (districtScopeIds: string[]) => (await getVerifiedRecords({ ...admin(), districtScopeIds }, { q: TAG })).rows.map((r) => r.sourceEmployeeCode).sort();
+    expect(await codes([dA])).toEqual(["D0005"]); // admin of district A
+    expect(await codes([dB])).toEqual(["D0002"]); // admin of district B
+    expect(await codes([NO_DISTRICT])).toEqual([]); // District Admin with no district: nothing, never everything
   });
 });

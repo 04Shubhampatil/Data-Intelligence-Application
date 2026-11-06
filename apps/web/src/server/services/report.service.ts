@@ -41,7 +41,7 @@ export async function groupCandidates(where: Prisma.CandidateWhereInput, kind: R
     const delegate = prisma[lookup] as unknown as { findMany(a: object): Promise<{ id: string; name: string }[]> };
     nameOf = new Map((await delegate.findMany({ where: { id: { in: ids } } })).map((r) => [r.id, r.name]));
   }
-  if (kind === "reviewStatus") nameOf = new Map([["PENDING_REVIEW", "Pending review"], ["SELECTED", "Selected"], ["REJECTED", "Rejected"]]);
+  if (kind === "reviewStatus") nameOf = new Map([["PENDING_REVIEW", "Pending review"], ["SELECTED", "Verified"], ["REJECTED", "Rejected"]]);
   const total = raw.reduce((s, r) => s + r.count, 0) || 1;
   return raw.map((r) => ({
     label: r.key ? (nameOf.get(r.key) ?? r.key) : "Unassigned",

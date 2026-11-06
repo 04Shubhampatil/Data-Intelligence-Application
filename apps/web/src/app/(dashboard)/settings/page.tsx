@@ -17,6 +17,7 @@ import { DocumentPolicyPanel } from "./document-policy-panel";
 import { DOCUMENT_DEFS, DOCUMENT_KINDS } from "@di/core";
 import { formatDateTime, roleLabel } from "@/lib/format";
 import { hasPermission } from "@/lib/rbac";
+import { sourceCommands } from "@/lib/source-commands";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -25,7 +26,9 @@ export default async function SettingsPage() {
   const canManageAll = hasPermission(user.permissions, "users:manage");
   const canManageUsers = canManageAll || hasPermission(user.permissions, "users:manage_district");
   const ai = aiConfig();
-  const [retention, lastCleanup, suppressed, backups, sources] = await Promise.all([getRetentionSettings(), getLastCleanup(), listSuppressed(), listBackups(), getSources()]);
+  const [retention, lastCleanup, suppressedRows, backups, sources] = await Promise.all([getRetentionSettings(), getLastCleanup(), listSuppressed(), listBackups(), getSources()]);
+  // A blocked code is stored once per source; show it once.
+  const suppressed = suppressedRows.filter((r, i, all) => all.findIndex((x) => x.sourceEmployeeCode === r.sourceEmployeeCode) === i);
   const [roles, users] = await Promise.all([
     prisma.role.findMany({ orderBy: { name: "asc" }, include: { _count: { select: { users: true } } } }),
     canManageUsers
@@ -129,7 +132,7 @@ export default async function SettingsPage() {
                 </dl>
               )}
               <p className="mt-4 text-xs text-muted-foreground">
-                Commands: <code className="font-mono">npm run source:login</code> (sign in), <code className="font-mono">npm run source:session:export</code> / <code className="font-mono">import</code> (move a session to the server). Field approvals are changed in the <code className="font-mono">FieldPolicy</code> table by a Super Admin after the data owner signs them off.
+                Commands: {sources.map((s, i) => (<span key={s.id}>{i > 0 && ", "}<code className="font-mono">{sourceCommands(s.adapterKey).login}</code> (sign in to {s.name})</span>))}, <code className="font-mono">npm run source:session:export</code> / <code className="font-mono">import</code> (move a session to the server). Field approvals are changed in the <code className="font-mono">FieldPolicy</code> table by a Super Admin after the data owner signs them off.
               </p>
             </CardContent>
           </Card>

@@ -188,6 +188,8 @@ export const MAHAHRD = {
       a_form: "A_FORM",
       voter_id_photo: "VOTER_ID",
       experience_letters: "EXPERIENCE_LETTER",
+      graduation: "GRADUATION_CERTIFICATE", // education-tab upload folders (seen 2026-11-03)
+      pg: "POSTGRADUATION_CERTIFICATE",
     } as Record<string, string>,
     /**
      * The employee's photo is the avatar on the profile card. The top bar also shows a photo from the

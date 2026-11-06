@@ -7,7 +7,7 @@ import { installGuard } from "../browser/guard";
 import { keepAwake } from "../browser/keep-awake";
 import { launchBrowser } from "../browser/launch";
 import { loadSession, saveSession } from "../browser/session";
-import { loadAllowedDocumentKinds, loadAllowedFields } from "../pipeline/field-policy";
+import { ensureDocumentPolicies, loadAllowedDocumentKinds, loadAllowedFields } from "../pipeline/field-policy";
 import type { Downloader } from "../pipeline/documents";
 import { emptyCounters, processRecord, type Counters, type RecordContext } from "./process-record";
 
@@ -87,6 +87,8 @@ export async function runSyncJob(jobId: string, log: RunLog = console.log): Prom
   const conn = job.sourceConnection;
   const adapter = getAdapter(conn.adapterKey);
   const options = syncOptionsSchema.parse(job.filters ?? {});
+  // New document kinds (added after the source was set up) get their default policy; decisions are never changed.
+  await ensureDocumentPolicies(conn.id);
   const allowed = await loadAllowedFields(conn.id);
   const allowedDocuments = await loadAllowedDocumentKinds(conn.id);
   const checkpoint = (job.checkpoint as Checkpoint | null) ?? null;
@@ -143,8 +145,10 @@ export async function runSyncJob(jobId: string, log: RunLog = console.log): Prom
     const sourceFilters = await adapter.readFilterOptions(page);
     await prisma.sourceConnection.update({ where: { id: conn.id }, data: { sourceFilters } });
 
-    const suppressed = new Set((await prisma.suppressedRecord.findMany({ where: { sourceConnectionId: conn.id }, select: { sourceEmployeeCode: true } })).map((r) => r.sourceEmployeeCode));
+    // A code erased under ANY source is blocked from every source.
+    const suppressed = new Set((await prisma.suppressedRecord.findMany({ select: { sourceEmployeeCode: true } })).map((r) => r.sourceEmployeeCode));
     if (suppressed.size) log(`${suppressed.size} erased code(s) will be skipped`);
+
 
     // Document downloads: GET only, allow-listed hosts only, through the same session.
     const download: Downloader = async (url) => {

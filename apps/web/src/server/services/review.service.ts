@@ -3,6 +3,7 @@ import { prisma, type ReviewDecision, type ReviewStatus } from "@di/db";
 import type { CurrentUser } from "@/server/auth/session";
 import { candidateScope } from "@/server/auth/scope";
 import { hasPermission } from "@/lib/rbac";
+import { decisionWord } from "@/lib/review-labels";
 import { isDecisionRole } from "@di/db/permissions";
 import { audit } from "@/server/security/audit";
 import { districtAdminIds, notifyUsers } from "./notification.service";
@@ -71,7 +72,7 @@ export async function decideCandidate(opts: { candidateId: string; decision: Rev
     throw new ReviewError("This candidate already has a decision. Changing it requires the override permission.", "CONFLICT");
   }
   if (alreadyDecided && previousStatus === opts.decision && !c.reviewPendingConfirmation) {
-    throw new ReviewError(`This candidate is already ${opts.decision.toLowerCase()}.`, "CONFLICT");
+    throw new ReviewError(`This candidate is already ${decisionWord(opts.decision)}.`, "CONFLICT");
   }
 
   const requiresConfirmation = user.role === "DISTRICT_VIEWER" && (await twoStepEnabled());
@@ -115,12 +116,12 @@ export async function decideCandidate(opts: { candidateId: string; decision: Rev
   const who = user.name ?? user.email;
   const link = `/candidates/${c.id}`;
   if (requiresConfirmation) {
-    await notifyUsers(await districtAdminIds(c.districtId), { type: "REVIEW_AWAITING", title: `Decision awaiting confirmation: ${c.sourceEmployeeCode}`, body: `${who} marked the candidate as ${opts.decision.toLowerCase()}.`, link });
+    await notifyUsers(await districtAdminIds(c.districtId), { type: "REVIEW_AWAITING", title: `Decision awaiting confirmation: ${c.sourceEmployeeCode}`, body: `${who} marked the candidate as ${decisionWord(opts.decision)}.`, link });
   }
   if (alreadyDecided && latest) {
     const prev = await prisma.candidateReview.findUnique({ where: { id: latest.id }, select: { reviewedById: true } });
     if (prev && prev.reviewedById !== user.id) {
-      await notifyUsers([prev.reviewedById], { type: "REVIEW_OVERRIDDEN", title: `Decision changed: ${c.sourceEmployeeCode}`, body: `${who} changed the decision to ${opts.decision.toLowerCase()}.`, link });
+      await notifyUsers([prev.reviewedById], { type: "REVIEW_OVERRIDDEN", title: `Decision changed: ${c.sourceEmployeeCode}`, body: `${who} changed the decision to ${decisionWord(opts.decision)}.`, link });
     }
   }
   return review;
@@ -141,7 +142,7 @@ export async function confirmReview(reviewId: string, user: CurrentUser) {
     prisma.candidate.update({ where: { id: r.candidateId }, data: { reviewPendingConfirmation: false } }),
   ]);
   await audit("REVIEW_CONFIRM", { userId: user.id, target: r.candidateId, metadata: { reviewId: r.id, decision: r.decision } });
-  await notifyUsers([r.reviewedById], { type: "REVIEW_CONFIRMED", title: `Decision confirmed: ${r.candidate.sourceEmployeeCode}`, body: `${user.name ?? user.email} confirmed your ${r.decision.toLowerCase()} decision.`, link: `/candidates/${r.candidateId}` });
+  await notifyUsers([r.reviewedById], { type: "REVIEW_CONFIRMED", title: `Decision confirmed: ${r.candidate.sourceEmployeeCode}`, body: `${user.name ?? user.email} confirmed your ${decisionWord(r.decision)} decision.`, link: `/candidates/${r.candidateId}` });
 }
 
 export async function addComment(opts: { candidateId: string; body: string; user: CurrentUser }) {
