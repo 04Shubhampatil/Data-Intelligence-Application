@@ -2,7 +2,7 @@ import "../env";
 import { DOCUMENT_DEFS, SENSITIVE_GROUPS, syncOptionsSchema, type DocumentKind, type SensitiveGroup } from "@di/core";
 import { prisma } from "@di/db";
 import { enqueueJob } from "../jobs/queue";
-import { runSyncJob } from "../jobs/run-sync";
+import { runSyncJobWithAutoLogin } from "../jobs/run-with-login";
 import { getSourceConnection } from "./source";
 
 /**
@@ -28,7 +28,7 @@ try {
   process.exit(1);
 }
 
-const status = await runSyncJob(jobId, (m) => console.log(`[${new Date().toLocaleTimeString("en-IN")}] ${m}`));
+const status = await runSyncJobWithAutoLogin(jobId, (m) => console.log(`[${new Date().toLocaleTimeString("en-IN")}] ${m}`));
 const job = await prisma.syncJob.findUniqueOrThrow({ where: { id: jobId }, include: { errors: { where: { resolvedAt: null }, take: 20 } } });
 console.log(`\n${status === "SUCCEEDED" ? "✔" : "✘"} Sync job ${jobId} — ${status} (created ${job.created}, updated ${job.updated}, unchanged ${job.unchanged}, failed ${job.failed})`);
 for (const e of job.errors) console.log(`  ! ${e.stage}: ${e.message}`);

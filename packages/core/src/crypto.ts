@@ -58,4 +58,7 @@ export function decryptBytes(blob: Uint8Array, aad: string, key = loadKey()): Ui
 }
 
 /** Binds an encrypted file to its candidate, kind and plaintext hash (identical files are stored once). */
+/** Encryption context of a saved source (MahaHRD) password: written by the web app, read only by the worker. */
+export const sourceCredentialsAad = (connectionId: string) => `source-credentials:${connectionId}`;
+
 export const documentAad = (candidateId: string, kind: string, sha256: string) => `di-doc:${candidateId}:${kind}:${sha256}`;

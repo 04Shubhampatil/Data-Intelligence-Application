@@ -1,7 +1,8 @@
 import "../env";
 import { prisma } from "@di/db";
 import { claimNextJob } from "../jobs/queue";
-import { runSyncJob } from "../jobs/run-sync";
+import { runSyncJobWithAutoLogin } from "../jobs/run-with-login";
+import { autoLogin } from "../browser/auto-login";
 import { runDueSchedules, recordScheduleOutcome } from "../jobs/scheduler";
 import { writeWorkerHeartbeat } from "../jobs/heartbeat";
 import { notifyJobOutcome } from "../notify";
@@ -12,6 +13,7 @@ import { runRetentionCleanup } from "@di/db/retention";
  *  - queues jobs for due schedules (hourly / daily / weekly),
  *  - picks up queued jobs (from the web app or schedules) one at a time,
  *  - writes a heartbeat so the web app can show it is alive,
+ *  - runs "Test connection" requests from Settings (automatic sign-in with the saved credentials),
  *  - notifies on failures.
  * Ctrl-C stops after the current record; the job resumes from its checkpoint.
  */
@@ -48,6 +50,19 @@ while (!stopping) {
     }
   }
 
+  // "Test connection" from Settings → Source connection: sign in once and record the outcome.
+  try {
+    const tests = await prisma.sourceConnection.findMany({ where: { loginTestRequestedAt: { not: null } }, select: { id: true, name: true } });
+    for (const t of tests) {
+      log(`connection test requested for ${t.name}`);
+      await prisma.sourceConnection.update({ where: { id: t.id }, data: { loginTestRequestedAt: null } });
+      const r = await autoLogin(t.id, log);
+      log(r.ok ? `connection test for ${t.name}: signed in` : `connection test for ${t.name} failed: ${r.reason}`);
+    }
+  } catch (e) {
+    log(`connection test error: ${e instanceof Error ? e.message : e}`);
+  }
+
   try {
     await runDueSchedules(new Date(), log);
   } catch (e) {
@@ -67,7 +82,7 @@ while (!stopping) {
   await writeWorkerHeartbeat({ currentJobId: id, startedAt });
   log(`Running job ${id}`);
   try {
-    const status = await runSyncJob(id, log);
+    const status = await runSyncJobWithAutoLogin(id, log);
     await recordScheduleOutcome(id);
     await notifyJobOutcome(id, status, log);
   } catch (e) {

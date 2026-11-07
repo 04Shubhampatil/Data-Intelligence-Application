@@ -50,6 +50,8 @@ if [ "$code" != "200" ]; then
 fi
 echo "Deployed. Health: $code. Previous version kept in ~/resourcedata/app-old"
 '@
+# PowerShell would otherwise prepend a byte-order mark to what it pipes into ssh (bash then skips line 1).
+$OutputEncoding = New-Object System.Text.UTF8Encoding $false
 ($remote -replace "`r", "") -replace "__BASE__", $BasePath | ssh -i $Key -o BatchMode=yes $HostName "bash -s"
 if ($LASTEXITCODE -ne 0) { throw "Deploy failed (rolled back)" }
 Remove-Item $Archive -ErrorAction SilentlyContinue

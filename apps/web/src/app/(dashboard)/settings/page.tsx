@@ -8,14 +8,15 @@ import { requireUser } from "@/server/auth/session";
 import { aiConfig } from "@/server/ai/client";
 import { getLastCleanup, getRetentionSettings, listSuppressed } from "@di/db/retention";
 import { listBackups } from "@/server/services/backup.service";
-import { getSources } from "@/server/services/sync.service";
+import { getSources, getWorkerStatus } from "@/server/services/sync.service";
+import { SourceLoginCard } from "./source-login-card";
 import { RetentionPanel } from "./retention-panel";
 import { isLockedNow } from "@/server/services/sync.service";
 import { UsersPanel } from "./users-panel";
 import { RolesPanel } from "./roles-panel";
 import { DocumentPolicyPanel } from "./document-policy-panel";
 import { DOCUMENT_DEFS, DOCUMENT_KINDS } from "@di/core";
-import { formatDateTime, roleLabel } from "@/lib/format";
+import { roleLabel } from "@/lib/format";
 import { hasPermission } from "@/lib/rbac";
 import { sourceCommands } from "@/lib/source-commands";
 
@@ -26,7 +27,7 @@ export default async function SettingsPage() {
   const canManageAll = hasPermission(user.permissions, "users:manage");
   const canManageUsers = canManageAll || hasPermission(user.permissions, "users:manage_district");
   const ai = aiConfig();
-  const [retention, lastCleanup, suppressedRows, backups, sources] = await Promise.all([getRetentionSettings(), getLastCleanup(), listSuppressed(), listBackups(), getSources()]);
+  const [retention, lastCleanup, suppressedRows, backups, sources, worker] = await Promise.all([getRetentionSettings(), getLastCleanup(), listSuppressed(), listBackups(), getSources(), getWorkerStatus()]);
   // A blocked code is stored once per source; show it once.
   const suppressed = suppressedRows.filter((r, i, all) => all.findIndex((x) => x.sourceEmployeeCode === r.sourceEmployeeCode) === i);
   const [roles, users] = await Promise.all([
@@ -114,25 +115,30 @@ export default async function SettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Source dashboard connection</CardTitle>
-              <CardDescription>Managed from the server command line so that no source credential ever passes through the browser. Status and approved fields are shown on Data Synchronization.</CardDescription>
+              <CardDescription>The account the sync worker uses to sign in to the source. Sync status and approved fields are shown on Data Synchronization.</CardDescription>
             </CardHeader>
             <CardContent>
               {sources.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No source configured. Run <code className="font-mono">npm run source:setup</code> on the server.</p>
               ) : (
-                <dl className="grid gap-3 text-sm sm:grid-cols-2">
+                <div className="space-y-6">
                   {sources.map((s) => (
-                    <div key={s.id} className="contents">
-                      <div><dt className="text-muted-foreground">Name</dt><dd className="font-medium">{s.name}</dd></div>
-                      <div><dt className="text-muted-foreground">URL</dt><dd className="font-mono text-xs">{s.baseUrl}</dd></div>
-                      <div><dt className="text-muted-foreground">Sign-in</dt><dd className="font-medium">Manual session (no password stored){s.sessionSavedAt ? ` · saved ${formatDateTime(s.sessionSavedAt)}` : " · not signed in"}</dd></div>
-                      <div><dt className="text-muted-foreground">Approved fields</dt><dd className="font-medium">{s.fieldPolicies.filter((f) => f.allowed).length} of {s.fieldPolicies.length}</dd></div>
-                    </div>
+                    <SourceLoginCard
+                      key={s.id}
+                      canManage={user.role === "SUPER_ADMIN"}
+                      workerOnline={worker.online}
+                      s={{
+                        id: s.id, name: s.name, baseUrl: s.baseUrl, authMode: s.authMode, username: s.username, hasPassword: s.hasPassword,
+                        sessionSavedAt: s.sessionSavedAt?.toISOString() ?? null, autoLoginAt: s.autoLoginAt?.toISOString() ?? null,
+                        autoLoginError: s.autoLoginError, loginTestRequestedAt: s.loginTestRequestedAt?.toISOString() ?? null,
+                        approvedFields: `${s.fieldPolicies.filter((f) => f.allowed).length} of ${s.fieldPolicies.length}`,
+                      }}
+                    />
                   ))}
-                </dl>
+                </div>
               )}
               <p className="mt-4 text-xs text-muted-foreground">
-                Commands: {sources.map((s, i) => (<span key={s.id}>{i > 0 && ", "}<code className="font-mono">{sourceCommands(s.adapterKey).login}</code> (sign in to {s.name})</span>))}, <code className="font-mono">npm run source:session:export</code> / <code className="font-mono">import</code> (move a session to the server). Field approvals are changed in the <code className="font-mono">FieldPolicy</code> table by a Super Admin after the data owner signs them off.
+                Without a saved password, a technical user signs in from the server&apos;s command line instead ({sources.map((s, i) => (<span key={s.id}>{i > 0 && ", "}<code className="font-mono">{sourceCommands(s.adapterKey).login}</code></span>))}). Field approvals are changed in the <code className="font-mono">FieldPolicy</code> table by a Super Admin after the data owner signs them off.
               </p>
             </CardContent>
           </Card>

@@ -10,12 +10,14 @@ export async function getSources() {
     orderBy: { createdAt: "asc" }, // the primary source (MahaHRD) first
     select: {
       id: true, name: true, adapterKey: true, baseUrl: true, authMode: true, sessionSavedAt: true, lastSyncedAt: true, sourceFilters: true,
+      username: true, encryptedSecret: true, autoLoginAt: true, autoLoginError: true, loginTestRequestedAt: true,
       fieldPolicies: { select: { fieldKey: true, allowed: true }, orderBy: { fieldKey: "asc" } },
     },
   });
-  return sources.map((s) => {
+  return sources.map(({ encryptedSecret, ...s }) => {
     const f = (s.sourceFilters ?? {}) as { district?: SourceFilterOption[]; departmentHead?: SourceFilterOption[] };
-    return { ...s, districts: f.district ?? [], departmentHeads: f.departmentHead ?? [] };
+    // The encrypted password never leaves the server: pages only learn whether one is saved.
+    return { ...s, hasPassword: !!encryptedSecret, districts: f.district ?? [], departmentHeads: f.departmentHead ?? [] };
   });
 }
 

@@ -2,7 +2,7 @@ import "../env";
 import { STALE_JOB_MS, syncOptionsSchema } from "@di/core";
 import { prisma } from "@di/db";
 import { enqueueJob } from "../jobs/queue";
-import { runSyncJob } from "../jobs/run-sync";
+import { runSyncJobWithAutoLogin } from "../jobs/run-with-login";
 import { candidatesWithRetryableDocuments } from "../pipeline/documents";
 import { getSourceConnection } from "./source";
 
@@ -95,7 +95,7 @@ if (!jobId) {
   }
 }
 
-const status = await runSyncJob(jobId, (m) => console.log(`[${new Date().toLocaleTimeString("en-IN")}] ${m}`));
+const status = await runSyncJobWithAutoLogin(jobId, (m) => console.log(`[${new Date().toLocaleTimeString("en-IN")}] ${m}`));
 const job = await prisma.syncJob.findUniqueOrThrow({ where: { id: jobId }, include: { errors: { where: { resolvedAt: null }, take: 10 } } });
 console.log(`\n${status}: processed ${job.processed}/${job.totalRecords} · created ${job.created} · updated ${job.updated} · unchanged ${job.unchanged} · failed ${job.failed}`);
 for (const e of job.errors) console.log(`  ${e.stage} ${e.sourceEmployeeCode ?? ""} ${e.message}`);

@@ -54,6 +54,32 @@ export const mahahrdAdapter: SourceAdapter = {
   ],
 
   documentHosts: MAHAHRD.documents.hosts,
+
+  // The login form posts JSON to /login and then redirects to /dashboard (observed read-only 2026-11-07).
+  loginPostPaths: [/^\/login$/],
+
+  async autoLogin(page, baseUrl, { username, password }) {
+    await gotoWithRetry(page, new URL(this.loginPath, baseUrl).toString());
+    if (await this.isLoggedIn(page)) return; // a still-valid session went straight to the dashboard
+    const form = page.locator("#loginForm");
+    if (!(await form.count())) throw new AdapterError("LAYOUT_CHANGED", "The MahaHRD login form was not found (the page may have changed).");
+    await form.locator("#username").fill(username);
+    await form.locator("#password").fill(password);
+    await form.locator("#password").press("Enter");
+
+    const deadline = Date.now() + 45_000;
+    while (Date.now() < deadline) {
+      await page.waitForTimeout(500);
+      if (new URL(page.url()).pathname.startsWith("/dashboard") || (await this.isLoggedIn(page).catch(() => false))) {
+        await page.waitForLoadState("domcontentloaded").catch(() => {});
+        return;
+      }
+      // A refusal is written into .login_message in red (the source's own wording, e.g. "Invalid Username or Password!").
+      const message = (await page.locator(".login_message").innerText().catch(() => "")).replace(/\s+/g, " ").trim();
+      if (message && !/success|redirecting/i.test(message)) throw new AdapterError("LOGIN_REJECTED", message.slice(0, 200));
+    }
+    throw new AdapterError("LOGIN_REJECTED", "MahaHRD did not finish signing in within 45 seconds.");
+  },
   fetchAttendance,
   fetchTickets,
 

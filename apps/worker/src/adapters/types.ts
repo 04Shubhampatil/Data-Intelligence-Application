@@ -31,7 +31,7 @@ export type TicketRow = { sourceTicketId: string; ticketNumber?: string; type?: 
 
 export class AdapterError extends Error {
   constructor(
-    public code: "SESSION_EXPIRED" | "LAYOUT_CHANGED" | "NOT_FOUND" | "SOURCE_ERROR",
+    public code: "SESSION_EXPIRED" | "LAYOUT_CHANGED" | "NOT_FOUND" | "SOURCE_ERROR" | "LOGIN_REJECTED",
     message: string,
   ) {
     super(message);
@@ -68,4 +68,12 @@ export interface SourceAdapter {
   fetchTickets?(page: Page, code: string): Promise<TicketRow[]>;
   /** Hosts the worker may download documents from (GET only). */
   documentHosts: readonly string[];
+  /**
+   * Optional automatic sign-in with saved credentials (SourceAuthMode CREDENTIALS). Fills the source's own
+   * login form like a person would and resolves once an authenticated page is showing; throws
+   * AdapterError("LOGIN_REJECTED", <the source's message>) when the source refuses. Never logs credentials.
+   */
+  autoLogin?(page: Page, baseUrl: string, credentials: { username: string; password: string }): Promise<void>;
+  /** POST endpoints the login form itself calls. Allowed by the guard ONLY in the sign-in browser, never during a sync. */
+  loginPostPaths?: readonly RegExp[];
 }

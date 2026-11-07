@@ -73,7 +73,7 @@ model PasswordResetToken {
 
 enum SourceAuthMode {
   MANUAL_SESSION // an admin signs in by hand (incl. OTP); the worker reuses that session
-  CREDENTIALS // the worker fills the login form with stored credentials (not yet enabled)
+  CREDENTIALS // the worker signs in by itself with the saved username + encrypted password (2026-11-07)
 }
 
 model SourceConnection {
@@ -84,6 +84,10 @@ model SourceConnection {
   authMode         SourceAuthMode @default(MANUAL_SESSION)
   username         String?
   encryptedSecret  String?        @db.Text // AES-256-GCM; decrypted only in the worker
+  /// Automatic sign-in status (CREDENTIALS mode): last success, last failure reason (never a secret), pending test.
+  autoLoginAt          DateTime?
+  autoLoginError       String?   @db.VarChar(300)
+  loginTestRequestedAt DateTime?
   encryptedSession String?        @db.MediumText // AES-256-GCM Playwright storageState
   sessionSavedAt   DateTime?
   isActive         Boolean        @default(true)

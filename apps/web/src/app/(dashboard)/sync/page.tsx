@@ -102,8 +102,8 @@ export default async function SyncPage() {
                 <StartSyncForm
                   sourceId={s.id}
                   districts={s.districts}
-                  disabled={!!active || !s.sessionSavedAt}
-                  disabledReason={active ? "A sync is already in progress." : !s.sessionSavedAt ? `Sign in to the source first (${sourceCommands(s.adapterKey).login}).` : undefined}
+                  disabled={!!active || (!s.sessionSavedAt && !(s.authMode === "CREDENTIALS" && s.hasPassword))}
+                  disabledReason={active ? "A sync is already in progress." : !s.sessionSavedAt && !(s.authMode === "CREDENTIALS" && s.hasPassword) ? `Sign in to the source first (${sourceCommands(s.adapterKey).login}).` : undefined}
                 />
               ) : (
                 <p className="text-sm text-muted-foreground">Your role can view sync status but not start syncs.</p>
@@ -115,8 +115,8 @@ export default async function SyncPage() {
             <CardHeader>
               <CardTitle className="flex flex-wrap items-center gap-2">
                 <KeyRound className="size-4" /> {s.name}
-                <Badge className={s.sessionSavedAt ? "border-0 bg-success/10 text-success" : "border-0 bg-muted text-muted-foreground"}>
-                  {s.sessionSavedAt ? "Session saved" : "Not signed in"}
+                <Badge className={s.sessionSavedAt || (s.authMode === "CREDENTIALS" && s.hasPassword) ? "border-0 bg-success/10 text-success" : "border-0 bg-muted text-muted-foreground"}>
+                  {s.authMode === "CREDENTIALS" && s.hasPassword ? "Automatic sign-in" : s.sessionSavedAt ? "Session saved" : "Not signed in"}
                 </Badge>
               </CardTitle>
               <CardDescription>

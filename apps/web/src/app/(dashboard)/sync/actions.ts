@@ -28,7 +28,7 @@ export async function startSyncAction(_prev: ActionState, formData: FormData): P
 
   const source = (await getSources()).find((s) => s.id === input.sourceId);
   if (!source) return { error: "Unknown source." };
-  if (!source.sessionSavedAt) return { error: `Not signed in to ${source.name}. Run \`${sourceCommands(source.adapterKey).login}\` first.` };
+  if (!source.sessionSavedAt && !(source.authMode === "CREDENTIALS" && source.hasPassword)) return { error: `Not signed in to ${source.name}. Run \`${sourceCommands(source.adapterKey).login}\` first.` };
 
   const options = syncOptionsSchema.parse({
     kind: input.scope === "all" ? "full" : "filtered",
