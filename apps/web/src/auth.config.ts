@@ -26,6 +26,7 @@ export const authConfig = {
       // (e.g. /resourcedata/api/health); without a prefix this is the plain path.
       const pathname = stripBase(request.nextUrl.pathname);
       if (pathname.startsWith("/api/auth") || pathname === "/api/health") return true; // health check must stay public
+      if (pathname === "/session-ended") return true; // clears a stale session; must never bounce
       const signedIn = !!auth?.user;
       if (isPublicPath(pathname)) {
         // Only page visits are sent home. A form submission (server action POST) must reach the action:

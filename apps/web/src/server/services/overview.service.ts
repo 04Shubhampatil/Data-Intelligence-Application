@@ -10,8 +10,13 @@ import { profilePhotoUrls } from "./candidate.service";
 const TZ = "Asia/Kolkata";
 const MONTHS = 6;
 
-/** "YYYY-MM" of a date in India time. */
-const monthKey = (d: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit" }).format(d).slice(0, 7);
+/**
+ * "YYYY-MM" of a date in India time. IST is a fixed UTC+05:30 (no daylight saving), so plain arithmetic is exact.
+ * (It used to build a new Intl.DateTimeFormat per call — ~15,000 per Dashboard view, about 1 s. QA 2026-11-07.)
+ */
+const IST_OFFSET_MS = 330 * 60_000;
+export const monthKey = (d: Date) => new Date(d.getTime() + IST_OFFSET_MS).toISOString().slice(0, 7);
+void TZ; // kept for documentation: all month keys are in Asia/Kolkata
 
 /** The last `n` month keys ending with the current one (India time), oldest first. */
 export function lastMonths(n: number, now = new Date()): string[] {
@@ -35,7 +40,10 @@ export function cumulativeByMonth(dates: Date[], months: string[]): number[] {
 /** Count of dates falling in each month key. */
 export function countByMonth(dates: Date[], months: string[]): number[] {
   const counts = new Map<string, number>();
-  for (const d of dates) counts.set(monthKey(d), (counts.get(monthKey(d)) ?? 0) + 1);
+  for (const d of dates) {
+    const k = monthKey(d);
+    counts.set(k, (counts.get(k) ?? 0) + 1);
+  }
   return months.map((m) => counts.get(m) ?? 0);
 }
 

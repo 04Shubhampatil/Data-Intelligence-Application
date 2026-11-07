@@ -12,7 +12,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
         <h2 className="text-2xl font-bold tracking-tight text-brand-navy">Welcome back</h2>
         <p className="text-sm text-muted-foreground">Sign in with your administrator account.</p>
       </div>
-      <LoginForm callbackUrl={callbackUrl} reset={sp.reset === "1"} />
+      <LoginForm callbackUrl={callbackUrl} reset={sp.reset === "1"} ended={sp.ended === "1"} />
     </div>
   );
 }

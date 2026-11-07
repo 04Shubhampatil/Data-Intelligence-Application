@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Field } from "@/components/forms/field";
 import { loginAction } from "../actions";
 
-export function LoginForm({ callbackUrl, reset }: { callbackUrl?: string; reset?: boolean }) {
+export function LoginForm({ callbackUrl, reset, ended }: { callbackUrl?: string; reset?: boolean; ended?: boolean }) {
   const [state, action, pending] = useActionState(loginAction, undefined);
 
   return (
@@ -16,6 +16,12 @@ export function LoginForm({ callbackUrl, reset }: { callbackUrl?: string; reset?
         <Alert className="border-success/30 bg-success/5 text-success">
           <CheckCircle2 />
           <AlertDescription className="text-success">Password updated. Sign in with your new password.</AlertDescription>
+        </Alert>
+      )}
+      {ended && !state && (
+        <Alert>
+          <AlertCircle />
+          <AlertDescription>Your session has ended. Please sign in again.</AlertDescription>
         </Alert>
       )}
       {state?.error && (

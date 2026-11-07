@@ -57,7 +57,7 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reports"
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <Card className="overflow-hidden py-0">
           <CardHeader className="border-b py-4">
             <CardTitle>{report.label}</CardTitle>
@@ -68,7 +68,7 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reports"
           {report.groups.length === 0 ? (
             <EmptyState icon={FileBarChart} title="Nothing to report" description="No synced records match these filters." />
           ) : (
-            <div className="overflow-x-auto">
+            <div className="relative overflow-x-auto">
               <table className="w-full min-w-[560px] text-sm">
                 <thead>
                   <tr className="border-b bg-muted/70 text-left text-xs font-semibold text-foreground">

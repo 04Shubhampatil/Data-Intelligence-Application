@@ -83,7 +83,7 @@ export default async function ReviewQueuePage({ searchParams }: PageProps<"/revi
         <Stat label="Rejected" value={counts.rejected} icon={XCircle} tone="bg-destructive/10 text-destructive" />
       </div>
 
-      <div className="my-6 grid gap-6 xl:grid-cols-[1fr_20rem]">
+      <div className="my-6 grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
         <Card className="overflow-hidden py-0">
           <CardHeader className="border-b py-4">
             <div className="flex flex-wrap items-center justify-between gap-3">

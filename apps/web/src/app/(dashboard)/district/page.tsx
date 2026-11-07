@@ -85,7 +85,7 @@ export default async function DistrictDashboardPage({ searchParams }: PageProps<
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 xl:grid-cols-[1fr_22rem]">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <Card className="overflow-hidden py-0">
           <CardHeader className="border-b py-4">
             <CardTitle>Candidate reviews</CardTitle>

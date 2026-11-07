@@ -89,7 +89,7 @@ export default async function SyncPage() {
       )}
 
       {sources.map((s) => (
-        <div key={s.id} className="mb-6 grid gap-6 lg:grid-cols-[1fr_22rem]">
+        <div key={s.id} className="mb-6 grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">

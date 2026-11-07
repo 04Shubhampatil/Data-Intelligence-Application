@@ -44,7 +44,7 @@ export default async function MessageThreadPage({ params }: PageProps<"/messages
       <div className="mb-4">
         <Button variant="ghost" size="sm" asChild><Link href="/messages"><ArrowLeft /> All messages</Link></Button>
       </div>
-      <div className="grid gap-6 xl:grid-cols-[1fr_20rem]">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
         <Card>
           <CardHeader>
             <CardTitle className="flex flex-wrap items-center gap-2">{t.subject} <MessageKindBadge kind={t.kind} /></CardTitle>

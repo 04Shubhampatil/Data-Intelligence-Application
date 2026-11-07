@@ -53,7 +53,8 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
 /** For pages/server actions: redirects to login, or renders 403. */
 export async function requireUser(permission?: Permission | Permission[]): Promise<CurrentUser> {
   const user = await getCurrentUser();
-  if (!user) redirect("/login");
+  // The proxy only saw a valid cookie; the user is gone or disabled. Clear the session (no redirect loop).
+  if (!user) redirect("/session-ended");
   if (permission && !hasPermission(user.permissions, permission)) redirect("/403");
   return user;
 }

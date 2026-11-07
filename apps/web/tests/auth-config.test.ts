@@ -56,5 +56,12 @@ describe("proxy authorization", () => {
     expect(location(run("GET", "/resourcedata/district", false))).toBe("https://example.test/resourcedata/login?callbackUrl=%2Fresourcedata%2Fdistrict");
     expect(location(run("GET", "/resourcedata/login", true))).toBe("https://example.test/resourcedata");
     expect(run("POST", "/resourcedata/login", true)).toBe(true);
+    expect(run("GET", "/resourcedata/session-ended", true)).toBe(true);
+  });
+
+  it("/session-ended is never redirected (it clears a stale session; prevents a redirect loop)", async () => {
+    const run = await load();
+    expect(run("GET", "/session-ended", true)).toBe(true);
+    expect(run("GET", "/session-ended", false)).toBe(true);
   });
 });

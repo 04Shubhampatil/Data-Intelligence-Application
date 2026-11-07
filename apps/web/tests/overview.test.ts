@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 describe("overview helpers", async () => {
-  const { lastMonths, cumulativeByMonth, countByMonth, trendPct, monthlyActivity } = await import("@/server/services/overview.service");
+  const { lastMonths, cumulativeByMonth, countByMonth, trendPct, monthlyActivity, monthKey } = await import("@/server/services/overview.service");
   const ist = (s: string) => new Date(`${s}+05:30`);
 
   it("lists the last N months in India time, oldest first (handles year boundaries)", () => {
@@ -39,5 +39,22 @@ describe("overview helpers", async () => {
     expect(trendPct(112, 100)).toBe(12);
     expect(trendPct(90, 120)).toBe(-25);
     expect(trendPct(5125, 5000)).toBe(2.5);
+  });
+  it("monthKey matches Intl formatting in India time, including around IST midnight", () => {
+    const intl = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit" });
+    const samples = [
+      "2026-10-31T18:29:59.999Z", "2026-10-31T18:30:00.000Z", "2026-12-31T18:29:59Z", "2026-12-31T18:30:00Z",
+      "2024-02-29T20:00:00Z", "2026-03-31T18:30:00Z", "2026-11-07T05:00:00Z", "1999-12-31T23:59:59Z",
+    ].map((s) => new Date(s));
+    for (const d of samples) expect(monthKey(d)).toBe(intl.format(d).slice(0, 7));
+  });
+
+  it("stays fast on a full dataset (was ~1 s per Dashboard view)", () => {
+    const dates = Array.from({ length: 20_000 }, (_, i) => new Date(Date.UTC(2026, 0, 1) + i * 3_600_000));
+    const months = lastMonths(6, new Date("2026-11-07T00:00:00Z"));
+    const t0 = performance.now();
+    cumulativeByMonth(dates, months);
+    countByMonth(dates, months);
+    expect(performance.now() - t0).toBeLessThan(200);
   });
 });
