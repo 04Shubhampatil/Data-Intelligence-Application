@@ -43,7 +43,7 @@ pm2 describe resourcedata-worker | grep -m 1 "status" || true
 '@
 # PowerShell would otherwise prepend a byte-order mark to what it pipes into ssh (bash then skips line 1).
 $OutputEncoding = New-Object System.Text.UTF8Encoding $false
-$remote -replace "`r", "" | ssh -i $Key -o BatchMode=yes $HostName "bash -s"
+$remote -replace "`r", "" | ssh -i $Key -o BatchMode=yes $HostName "sed '1s/^\xEF\xBB\xBF//' | bash -se"
 if ($LASTEXITCODE -ne 0) { throw "Worker deploy failed" }
 Remove-Item $Archive -ErrorAction SilentlyContinue
 Write-Host "Worker deployed."
