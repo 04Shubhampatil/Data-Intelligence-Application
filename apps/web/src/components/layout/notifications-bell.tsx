@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { withBase } from "@/lib/base-path";
 
 type Item = { id: string; type: string; title: string; body: string | null; link: string | null; readAt: string | null; createdAt: string };
 
@@ -20,7 +21,7 @@ export function NotificationsBell({ initialUnread }: { initialUnread: number }) 
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch("/api/notifications", { cache: "no-store" });
+      const res = await fetch(withBase("/api/notifications"), { cache: "no-store" });
       if (!res.ok) return;
       const data = (await res.json()) as { items: Item[]; unread: number };
       setItems(data.items);
@@ -43,7 +44,7 @@ export function NotificationsBell({ initialUnread }: { initialUnread: number }) 
 
   const markAll = async () => {
     try {
-      await fetch("/api/notifications", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
+      await fetch(withBase("/api/notifications"), { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
       setItems((xs) => xs.map((x) => ({ ...x, readAt: x.readAt ?? new Date().toISOString() })));
       setUnread(0);
     } catch {

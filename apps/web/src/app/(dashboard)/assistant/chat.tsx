@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { withBase } from "@/lib/base-path";
 
 type Table = { resultId: string; title: string; columns: { key: string; label: string }[]; rows: Record<string, string | number | null>[]; total: number; exportable: boolean };
 type CardData = { label: string; value: string | number; hint?: string };
@@ -42,7 +43,7 @@ export function Chat({ userName }: { userName: string }) {
     setInput("");
     setPending(true);
     try {
-      const res = await fetch("/api/assistant/chat", {
+      const res = await fetch(withBase("/api/assistant/chat"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: next.filter((m) => !m.error).slice(-10).map((m) => ({ role: m.role, content: m.content })) }),
@@ -200,7 +201,7 @@ function ResultTable({ table: t }: { table: Table }) {
         </div>
         {t.exportable && (
           <Button size="sm" variant="outline" asChild>
-            <a href={`/api/exports/${t.resultId}`} download>
+            <a href={withBase(`/api/exports/${t.resultId}`)} download>
               <Download /> Export Excel
             </a>
           </Button>

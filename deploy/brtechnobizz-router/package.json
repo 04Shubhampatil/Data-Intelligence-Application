@@ -1,0 +1,14 @@
+{
+  "name": "brtechnobizz-router",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Routes brtechnobizz.tech/resourcedata to Data Intelligence and everything else to MahaPanchayat",
+  "main": "router.js",
+  "scripts": {
+    "start": "node router.js",
+    "test": "node test-routing.js"
+  },
+  "dependencies": {
+    "http-proxy": "1.18.1"
+  }
+}

@@ -12,6 +12,7 @@ import { formatDateTime, formatNumber, relativeTime } from "@/lib/format";
 import { hasPermission } from "@/lib/rbac";
 import { CandidateFilters } from "../candidates/candidate-filters";
 import { ReportKindNav } from "./report-kind-nav";
+import { withBase } from "@/lib/base-path";
 
 export const metadata: Metadata = { title: "Reports" };
 
@@ -38,7 +39,7 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reports"
         actions={
           canExport && (
             <Button asChild disabled={report.total === 0}>
-              <a href={`/api/reports/export?${exportParams.toString()}`} download>
+              <a href={withBase(`/api/reports/export?${exportParams.toString()}`)} download>
                 <Download /> Export Excel
               </a>
             </Button>
@@ -146,7 +147,7 @@ export default async function ReportsPage({ searchParams }: PageProps<"/reports"
                         </div>
                         {canExport && (
                           <Button size="icon-sm" variant="ghost" asChild aria-label="Download again">
-                            <a href={`/api/reports/export?${again.toString()}`} download>
+                            <a href={withBase(`/api/reports/export?${again.toString()}`)} download>
                               <Download />
                             </a>
                           </Button>

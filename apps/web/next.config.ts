@@ -25,7 +25,11 @@ const CSP = [
   "form-action 'self'",
 ].join("; ");
 
+// Optional path prefix, e.g. "/resourcedata" for https://brtechnobizz.tech/resourcedata. Empty locally.
+const basePath = (process.env.NEXT_PUBLIC_BASE_PATH ?? "").replace(/\/+$/, "");
+
 const nextConfig: NextConfig = {
+  basePath,
   output: "standalone",
   // Monorepo: include @di/* workspace packages in the standalone server bundle.
   outputFileTracingRoot: path.resolve(process.cwd(), "../.."),

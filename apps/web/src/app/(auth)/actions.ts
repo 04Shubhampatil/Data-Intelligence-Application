@@ -14,6 +14,7 @@ import { rateLimit } from "@/server/security/rate-limit";
 import { audit } from "@/server/security/audit";
 import { sendPasswordResetEmail } from "@/server/mail/password-reset";
 import { getCurrentUser } from "@/server/auth/session";
+import { withBase } from "@/lib/base-path";
 
 export type FormState =
   | { error?: string; fieldErrors?: Record<string, string[] | undefined>; message?: string; email?: string }
@@ -46,7 +47,7 @@ export async function loginAction(_prev: FormState, formData: FormData): Promise
 export async function logoutAction() {
   const user = await getCurrentUser();
   if (user) await audit("LOGOUT", { userId: user.id });
-  await signOut({ redirectTo: "/login" });
+  await signOut({ redirectTo: withBase("/login") });
 }
 
 const GENERIC_RESET_MESSAGE =

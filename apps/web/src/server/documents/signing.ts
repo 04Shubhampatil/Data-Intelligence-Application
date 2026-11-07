@@ -1,5 +1,6 @@
 import "server-only";
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { withBase } from "@/lib/base-path";
 
 /**
  * Short-lived, user-bound links for document downloads. The link alone is not
@@ -25,7 +26,7 @@ export function signDocumentUrl(docId: string, userId: string, opts: { inline?: 
   const exp = Math.ceil((Math.floor((opts.now ?? Date.now()) / 1000) + TTL_SECONDS) / BUCKET_SECONDS) * BUCKET_SECONDS;
   const inline = !!opts.inline;
   const s = mac(docId, userId, exp, inline);
-  return `/api/documents/${encodeURIComponent(docId)}?e=${exp}&s=${s}${inline ? "&inline=1" : ""}`;
+  return withBase(`/api/documents/${encodeURIComponent(docId)}?e=${exp}&s=${s}${inline ? "&inline=1" : ""}`);
 }
 
 export function verifyDocumentSignature(docId: string, userId: string, exp: string | null, sig: string | null, inline: boolean, now = Date.now()) {
