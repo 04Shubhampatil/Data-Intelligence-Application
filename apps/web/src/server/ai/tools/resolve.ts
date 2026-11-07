@@ -58,7 +58,7 @@ export const istDayStart = (d: string) => new Date(`${d}T00:00:00.000+05:30`);
 export const istDayEnd = (d: string) => new Date(`${d}T23:59:59.999+05:30`);
 
 /**
- * Reviewer by name or email — only among people who recorded decisions on candidates
+ * Reviewer by name or username — only among people who recorded decisions on candidates
  * the user can see, so the lookup never reveals reviewers from other districts.
  */
 export async function resolveReviewer(value: string, scope: string[]): Promise<string> {
@@ -66,16 +66,16 @@ export async function resolveReviewer(value: string, scope: string[]): Promise<s
   const reviewers = await prisma.user.findMany({
     where: {
       reviews: { some: { candidate: scope.length ? { districtId: { in: scope } } : {} } },
-      OR: [{ name: { contains: v } }, { email: { contains: v } }],
+      OR: [{ name: { contains: v } }, { username: { contains: v } }],
     },
-    select: { id: true, name: true, email: true },
+    select: { id: true, name: true, username: true },
     take: 8,
     orderBy: { name: "asc" },
   });
-  const exact = reviewers.filter((r) => r.name?.toLowerCase() === v.toLowerCase() || r.email.toLowerCase() === v.toLowerCase());
+  const exact = reviewers.filter((r) => r.name?.toLowerCase() === v.toLowerCase() || r.username.toLowerCase() === v.toLowerCase());
   if (exact.length === 1) return exact[0].id;
   if (reviewers.length === 1) return reviewers[0].id;
-  throw new FilterResolutionError("reviewer", value, reviewers.map((r) => r.name ?? r.email));
+  throw new FilterResolutionError("reviewer", value, reviewers.map((r) => r.name ?? r.username));
 }
 
 /** Turns name-based AI filters into a Prisma where-clause. Scope (district ids) is always ANDed in. */

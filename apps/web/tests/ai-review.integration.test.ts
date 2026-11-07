@@ -45,7 +45,7 @@ describe.skipIf(!hasDb)("AI assistant — review data", async () => {
   let sourceId = "", dA = "", dB = "", reviewerA = "", reviewerB = "", c1 = "", c2 = "", c3 = "", cB = "";
 
   const user = (scope: string[], perms: string[] = ["assistant:use", "candidates:read", "reviews:read"]): CurrentUser => ({
-    id: reviewerA, email: `${TAG}-a@example.test`, name: "Tester", role: scope.length ? "DISTRICT_ADMIN" : "ADMIN", permissions: perms as CurrentUser["permissions"], districtScopeIds: scope,
+    id: reviewerA, username: `${TAG}-a@example.test`, name: "Tester", role: scope.length ? "DISTRICT_ADMIN" : "ADMIN", permissions: perms as CurrentUser["permissions"], districtScopeIds: scope,
   });
   const total = (r: unknown) => (r as { outcome: { forModel: { total: number } } }).outcome.forModel.total;
 
@@ -53,8 +53,8 @@ describe.skipIf(!hasDb)("AI assistant — review data", async () => {
     const role = await prisma.role.findUniqueOrThrow({ where: { name: "DISTRICT_VIEWER" } });
     dA = (await prisma.district.create({ data: { name: `${TAG} ALPHA` } })).id;
     dB = (await prisma.district.create({ data: { name: `${TAG} BETA` } })).id;
-    reviewerA = (await prisma.user.create({ data: { email: `${TAG.toLowerCase()}-a@example.test`, name: `${TAG} Priya Reviewer`, passwordHash: "x", roleId: role.id } })).id;
-    reviewerB = (await prisma.user.create({ data: { email: `${TAG.toLowerCase()}-b@example.test`, name: `${TAG} Bharat Reviewer`, passwordHash: "x", roleId: role.id } })).id;
+    reviewerA = (await prisma.user.create({ data: { username: `${TAG.toLowerCase()}-a@example.test`, name: `${TAG} Priya Reviewer`, passwordHash: "x", roleId: role.id } })).id;
+    reviewerB = (await prisma.user.create({ data: { username: `${TAG.toLowerCase()}-b@example.test`, name: `${TAG} Bharat Reviewer`, passwordHash: "x", roleId: role.id } })).id;
     sourceId = (await prisma.sourceConnection.create({ data: { name: TAG, adapterKey: "synthetic", baseUrl: "https://example.test" } })).id;
     const mk = async (code: string, districtId: string, status: "PENDING_REVIEW" | "SELECTED" | "REJECTED", pending = false, reviewedAt?: Date) =>
       (await prisma.candidate.create({ data: { sourceConnectionId: sourceId, sourceEmployeeCode: code, fullName: `${TAG} Person ${code}`, districtId, contentHash: "h", lastSyncedAt: new Date(), reviewStatus: status, reviewPendingConfirmation: pending, reviewedAt } })).id;

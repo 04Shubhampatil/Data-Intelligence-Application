@@ -21,21 +21,22 @@ async function main() {
     });
   }
 
-  const email = process.env.SEED_ADMIN_EMAIL?.toLowerCase().trim();
+  // SEED_ADMIN_USERNAME (sign-in name); defaults to "superadmin".
+  const username = (process.env.SEED_ADMIN_USERNAME ?? "superadmin").toLowerCase().trim();
   const password = process.env.SEED_ADMIN_PASSWORD;
-  if (!email || !password || password.length < 12) {
-    throw new Error("Set SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD (min 12 chars) in .env");
+  if (!username || !password || password.length < 12) {
+    throw new Error("Set SEED_ADMIN_PASSWORD (min 12 chars) and optionally SEED_ADMIN_USERNAME in .env");
   }
 
   const role = await prisma.role.findUniqueOrThrow({ where: { name: "SUPER_ADMIN" } });
-  const existing = await prisma.user.findUnique({ where: { email } });
+  const existing = await prisma.user.findUnique({ where: { username } });
   if (existing) {
-    console.log(`Admin ${email} already exists — password left unchanged.`);
+    console.log(`Admin "${username}" already exists — password left unchanged.`);
   } else {
     await prisma.user.create({
-      data: { email, name: "Super Admin", passwordHash: await bcrypt.hash(password, 12), roleId: role.id },
+      data: { username, name: "Super Admin", passwordHash: await bcrypt.hash(password, 12), roleId: role.id },
     });
-    console.log(`Created admin ${email}.`);
+    console.log(`Created admin "${username}".`);
   }
   console.log(`Roles: ${ROLE_NAMES.join(", ")}`);
 }

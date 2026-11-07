@@ -7,12 +7,11 @@ import { prisma, isRoleName, validateDistrictAssignment, ROLE_LABELS, type RoleN
 import { requireUser, type CurrentUser } from "@/server/auth/session";
 import { audit } from "@/server/security/audit";
 import { hasPermission } from "@/lib/rbac";
-import { passwordPolicy } from "@/lib/validation/auth";
+import { passwordPolicy, usernameSchema } from "@/lib/validation/auth";
 
 export type UserActionState = { ok?: boolean; error?: string; message?: string } | undefined;
 
 const id = z.string().regex(/^[a-z0-9]{1,40}$/i);
-const email = z.string().trim().toLowerCase().max(254).pipe(z.email("Enter a valid email address"));
 const districtIds = z.preprocess((v) => (typeof v === "string" ? v.split(",").filter(Boolean) : []), z.array(id).max(50));
 
 /** Who may manage whom. Super Admin: everyone except other Super Admins and themself. District Admin (with permission): District Viewers in own districts. */
@@ -52,7 +51,7 @@ async function editableTarget(actor: CurrentUser, userId: string) {
 
 const createSchema = z.object({
   name: z.string().trim().min(2, "Enter a name").max(80),
-  email,
+  username: usernameSchema,
   password: passwordPolicy,
   role: z.string(),
   districtIds,
@@ -62,27 +61,27 @@ export async function createUserAction(_prev: UserActionState, formData: FormDat
   const actor = await actorForUserManagement();
   const parsed = createSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Please check the form." };
-  const { name, email: mail, password, role, districtIds: dIds } = parsed.data;
+  const { name, username, password, role, districtIds: dIds } = parsed.data;
 
   if (!isRoleName(role) || !assignableRoles(actor).includes(role)) return { error: "You can't assign that role." };
   const ruleError = validateDistrictAssignment(role, dIds.length);
   if (ruleError) return { error: ruleError };
   const reachError = allowedDistricts(actor, dIds);
   if (reachError) return { error: reachError };
-  if (await prisma.user.findUnique({ where: { email: mail } })) return { error: "A user with this email already exists." };
+  if (await prisma.user.findUnique({ where: { username } })) return { error: "That username is already taken." };
   const roleRow = await prisma.role.findUnique({ where: { name: role } });
   if (!roleRow) return { error: "Role not found." };
   if (dIds.length && (await prisma.district.count({ where: { id: { in: dIds } } })) !== dIds.length) return { error: "Unknown district." };
 
   const user = await prisma.user.create({
     data: {
-      name, email: mail, passwordHash: await bcrypt.hash(password, 12), roleId: roleRow.id,
+      name, username, passwordHash: await bcrypt.hash(password, 12), roleId: roleRow.id,
       districtAssignments: { create: dIds.map((districtId) => ({ districtId, assignedById: actor.id })) },
     },
   });
   await audit("USER_CREATE", { userId: actor.id, target: user.id, metadata: { role, districts: dIds.length } });
   revalidatePath("/settings");
-  return { ok: true, message: `${name} created as ${ROLE_LABELS[role]}. Share the password with them securely.` };
+  return { ok: true, message: `${name} created as ${ROLE_LABELS[role]} with username "${username}". Share the password with them securely.` };
 }
 
 export async function setUserRoleAction(userId: string, role: string): Promise<UserActionState> {

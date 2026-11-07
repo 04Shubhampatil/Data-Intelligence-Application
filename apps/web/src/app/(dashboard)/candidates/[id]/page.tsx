@@ -115,8 +115,8 @@ export default async function CandidateDetailPage({ params, searchParams }: Page
     ...(c.profileSyncedAt ? [{ at: c.profileSyncedAt, text: "Profile synced from MAHAHRD", tone: "primary" as const }] : []),
     ...(c.documentsSyncedAt ? [{ at: c.documentsSyncedAt, text: "Documents synced", tone: "primary" as const }] : []),
     ...(tickets ?? []).map((t) => ({ at: t.syncedAt, text: `Ticket ${t.ticketNumber ?? ""} · ${t.subject ?? ""}`.trim(), tone: "muted" as const })),
-    ...timeline.reviews.map((r) => ({ at: r.createdAt, text: `${decisionLabel(r.decision)} by ${r.reviewedBy.name ?? r.reviewedBy.email}`, tone: r.decision === "SELECTED" ? ("success" as const) : ("danger" as const) })),
-    ...timeline.comments.map((m) => ({ at: m.createdAt, text: `Comment by ${m.author.name ?? m.author.email}`, tone: "muted" as const })),
+    ...timeline.reviews.map((r) => ({ at: r.createdAt, text: `${decisionLabel(r.decision)} by ${r.reviewedBy.name ?? r.reviewedBy.username}`, tone: r.decision === "SELECTED" ? ("success" as const) : ("danger" as const) })),
+    ...timeline.comments.map((m) => ({ at: m.createdAt, text: `Comment by ${m.author.name ?? m.author.username}`, tone: "muted" as const })),
     { at: c.createdAt, text: "Record first synced", tone: "muted" as const },
   ].sort((a, b) => b.at.getTime() - a.at.getTime());
 
@@ -161,7 +161,7 @@ export default async function CandidateDetailPage({ params, searchParams }: Page
                   status: c.reviewStatus,
                   updated: c.reviewUpdated,
                   pendingConfirmation: c.reviewPendingConfirmation,
-                  latest: latestReview ? { label: decisionLabel(latestReview.decision), by: latestReview.reviewedBy.name ?? latestReview.reviewedBy.email, at: formatDateTime(latestReview.createdAt) } : null,
+                  latest: latestReview ? { label: decisionLabel(latestReview.decision), by: latestReview.reviewedBy.name ?? latestReview.reviewedBy.username, at: formatDateTime(latestReview.createdAt) } : null,
                 }
               : null
           }
@@ -201,7 +201,7 @@ export default async function CandidateDetailPage({ params, searchParams }: Page
                     confirm: isSuperAdmin && hasPermission(user.permissions, "reviews:confirm"),
                     comment: isSuperAdmin && hasPermission(user.permissions, "comments:write"),
                   }}
-                  latest={latestReview ? { decision: latestReview.decision, by: latestReview.reviewedBy.name ?? latestReview.reviewedBy.email, byRole: roleLabel(latestReview.reviewedBy.role.name), at: formatDateTime(latestReview.createdAt), remark: latestReview.remark || null } : null}
+                  latest={latestReview ? { decision: latestReview.decision, by: latestReview.reviewedBy.name ?? latestReview.reviewedBy.username, byRole: roleLabel(latestReview.reviewedBy.role.name), at: formatDateTime(latestReview.createdAt), remark: latestReview.remark || null } : null}
                 />
               )}
             </div>

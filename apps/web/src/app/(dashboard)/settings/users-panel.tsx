@@ -16,7 +16,7 @@ import { createUserAction, resetUserPasswordAction, setUserActiveAction, setUser
 export type UserRow = {
   id: string;
   name: string | null;
-  email: string;
+  username: string;
   isActive: boolean;
   lastLoginAt: Date | null;
   role: string;
@@ -137,7 +137,7 @@ function UserRowItem({ u, isSelf, districts, roleOptions }: { u: UserRow; isSelf
       <tr className={!u.isActive ? "opacity-60" : undefined}>
         <td className="py-2.5 pr-4">
           <p className="font-medium">{u.name ?? "—"} {isSelf && <span className="text-xs text-muted-foreground">(you)</span>}</p>
-          <p className="text-xs text-muted-foreground">{u.email}</p>
+          <p className="text-xs text-muted-foreground">{u.username}</p>
         </td>
         <td className="py-2.5 pr-4">
           {editable ? (
@@ -187,13 +187,13 @@ function UserRowItem({ u, isSelf, districts, roleOptions }: { u: UserRow; isSelf
         </td>
       </tr>
       {panel === "password" && editable && (
-        <tr><td colSpan={6} className="pb-3"><ResetPasswordForm userId={u.id} name={u.name ?? u.email} onDone={() => setPanel("none")} /></td></tr>
+        <tr><td colSpan={6} className="pb-3"><ResetPasswordForm userId={u.id} name={u.name ?? u.username} onDone={() => setPanel("none")} /></td></tr>
       )}
       {panel === "districts" && editable && (
         <tr>
           <td colSpan={6} className="pb-3">
             <div className="space-y-3 rounded-xl border bg-muted/30 p-3">
-              <p className="text-sm font-medium">Districts for {u.name ?? u.email}</p>
+              <p className="text-sm font-medium">Districts for {u.name ?? u.username}</p>
               <DistrictPicker districts={districts} value={draft} onChange={setDraft} mode={mode} />
               <div className="flex gap-2">
                 <Button size="sm" disabled={pending} onClick={() => run(async () => { const r = await setUserDistrictsAction(u.id, draft); if (r?.ok) setPanel("none"); return r; })}>
@@ -236,8 +236,9 @@ function CreateUserForm({ roleOptions, districts, onDone }: { roleOptions: RoleO
           <Input id="nu-name" name="name" required minLength={2} maxLength={80} className="h-9 bg-card" />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="nu-email">Email (username)</Label>
-          <Input id="nu-email" name="email" type="email" required autoComplete="off" className="h-9 bg-card" />
+          <Label htmlFor="nu-username">Username</Label>
+          <Input id="nu-username" name="username" type="text" required minLength={3} maxLength={50} pattern="[A-Za-z0-9][A-Za-z0-9._-]*" autoCapitalize="none" spellCheck={false} autoComplete="off" className="h-9 bg-card" />
+          <p className="text-[11px] text-muted-foreground">Letters, numbers, dot, dash, underscore. Used to sign in.</p>
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="nu-password">Password</Label>

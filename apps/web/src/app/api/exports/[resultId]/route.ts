@@ -17,7 +17,7 @@ export async function GET(_req: Request, ctx: RouteContext<"/api/exports/[result
   if (!result) return Response.json({ error: "Not found" }, { status: 404 });
 
   const { rows, groups, filters } = await rowsForResult(result, user);
-  const file = await buildCandidatesWorkbook({ title: result.title, filters, rows, groups, generatedBy: user.name ?? user.email });
+  const file = await buildCandidatesWorkbook({ title: result.title, filters, rows, groups, generatedBy: user.name ?? user.username });
   await audit("EXPORT", { userId: user.id, target: resultId, metadata: { rows: rows.length, tool: result.tool } });
 
   const safeName = result.title.replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "_").slice(0, 60) || "export";

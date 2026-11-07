@@ -1,12 +1,17 @@
 import { z } from "zod";
 
-export const loginSchema = z.object({
-  email: z.string().trim().toLowerCase().max(254).pipe(z.email("Enter a valid email address")),
-  password: z.string().min(1, "Password is required").max(200),
-});
+/** Sign-in name: 3–50 characters, lower case letters, digits, dot, dash, underscore. Case-insensitive at sign-in. */
+export const usernameSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .min(3, "Use at least 3 characters")
+  .max(50, "Use at most 50 characters")
+  .regex(/^[a-z0-9][a-z0-9._-]*$/, "Use letters, numbers, dot, dash or underscore (no spaces)");
 
-export const forgotPasswordSchema = z.object({
-  email: z.string().trim().toLowerCase().max(254).pipe(z.email("Enter a valid email address")),
+export const loginSchema = z.object({
+  username: z.string().trim().toLowerCase().min(1, "Username is required").max(50),
+  password: z.string().min(1, "Password is required").max(200),
 });
 
 export const passwordPolicy = z
@@ -17,12 +22,13 @@ export const passwordPolicy = z
   .regex(/[A-Z]/, "Include an uppercase letter")
   .regex(/\d/, "Include a number");
 
-export const resetPasswordSchema = z
+export const changePasswordSchema = z
   .object({
-    token: z.string().regex(/^[A-Za-z0-9_-]{43}$/, "Invalid or expired link"),
+    current: z.string().min(1, "Enter your current password").max(200),
     password: passwordPolicy,
     confirm: z.string(),
   })
-  .refine((v) => v.password === v.confirm, { path: ["confirm"], message: "Passwords do not match" });
+  .refine((v) => v.password === v.confirm, { path: ["confirm"], message: "Passwords do not match" })
+  .refine((v) => v.password !== v.current, { path: ["password"], message: "Choose a password different from the current one" });
 
 export type LoginInput = z.infer<typeof loginSchema>;

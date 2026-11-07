@@ -12,7 +12,7 @@ describe.skipIf(!hasDb)("profile photos in lists", async () => {
   const { verifyDocumentSignature } = await import("@/server/documents/signing");
 
   let sourceId = "", dA = "", dB = "", withPhoto = "", noPhoto = "", other = "", photoDocId = "";
-  const user = (perms: string[], scope: string[]): CurrentUser => ({ id: "u-photo-test", email: "p@example.test", name: "P", role: "DISTRICT_ADMIN", permissions: perms as CurrentUser["permissions"], districtScopeIds: scope });
+  const user = (perms: string[], scope: string[]): CurrentUser => ({ id: "u-photo-test", username: "p@example.test", name: "P", role: "DISTRICT_ADMIN", permissions: perms as CurrentUser["permissions"], districtScopeIds: scope });
   const list = (u: CurrentUser) => listCandidates(candidateFilterSchema.parse({ q: TAG, pageSize: 25 }), u);
 
   beforeAll(async () => {

@@ -19,7 +19,7 @@ export async function GET(_request: Request, ctx: RouteContext<"/api/candidates/
   const inScope = await prisma.candidate.findFirst({ where: { id, ...candidateScope(user), isDeletedAtSource: false }, select: { reviewStatus: true, reviewedAt: true } });
   if (!inScope) return Response.json({ error: "Not found." }, { status: 404 });
   const t = await getReviewTimeline(id, user);
-  const who = (u: { name: string | null; email: string }) => u.name ?? u.email;
+  const who = (u: { name: string | null; username: string }) => u.name ?? u.username;
   return Response.json(
     {
       status: inScope.reviewStatus,

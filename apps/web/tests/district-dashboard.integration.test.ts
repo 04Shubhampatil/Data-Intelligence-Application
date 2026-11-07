@@ -16,8 +16,8 @@ describe.skipIf(!hasDb)("district dashboards", async () => {
 
   let sourceId = "", dA = "", dB = "", candA = "", candB = "", viewerId = "", adminId = "";
 
-  const admin = (): CurrentUser => ({ id: adminId, email: `${TAG}-da@example.test`, name: "DA", role: "DISTRICT_ADMIN", permissions: ["reviews:read", "candidates:read"], districtScopeIds: [dA] });
-  const viewer = (): CurrentUser => ({ id: viewerId, email: `${TAG}-dv@example.test`, name: "DV", role: "DISTRICT_VIEWER", permissions: ["reviews:read", "reviews:decide"], districtScopeIds: [dA] });
+  const admin = (): CurrentUser => ({ id: adminId, username: `${TAG}-da@example.test`, name: "DA", role: "DISTRICT_ADMIN", permissions: ["reviews:read", "candidates:read"], districtScopeIds: [dA] });
+  const viewer = (): CurrentUser => ({ id: viewerId, username: `${TAG}-dv@example.test`, name: "DV", role: "DISTRICT_VIEWER", permissions: ["reviews:read", "reviews:decide"], districtScopeIds: [dA] });
   const global = (): CurrentUser => ({ ...admin(), role: "SUPER_ADMIN", districtScopeIds: [] });
 
   beforeAll(async () => {
@@ -25,8 +25,8 @@ describe.skipIf(!hasDb)("district dashboards", async () => {
     const daRole = await prisma.role.findUniqueOrThrow({ where: { name: "DISTRICT_ADMIN" } });
     dA = (await prisma.district.create({ data: { name: `${TAG} ALPHA` } })).id;
     dB = (await prisma.district.create({ data: { name: `${TAG} BETA` } })).id;
-    adminId = (await prisma.user.create({ data: { email: `${TAG}-da@example.test`, passwordHash: "x", roleId: daRole.id, districtAssignments: { create: { districtId: dA } } } })).id;
-    viewerId = (await prisma.user.create({ data: { email: `${TAG}-dv@example.test`, name: `${TAG} Viewer`, passwordHash: "x", roleId: dvRole.id, districtAssignments: { create: { districtId: dA } } } })).id;
+    adminId = (await prisma.user.create({ data: { username: `${TAG}-da@example.test`, passwordHash: "x", roleId: daRole.id, districtAssignments: { create: { districtId: dA } } } })).id;
+    viewerId = (await prisma.user.create({ data: { username: `${TAG}-dv@example.test`, name: `${TAG} Viewer`, passwordHash: "x", roleId: dvRole.id, districtAssignments: { create: { districtId: dA } } } })).id;
     sourceId = (await prisma.sourceConnection.create({ data: { name: TAG, adapterKey: "synthetic", baseUrl: "https://example.test" } })).id;
     const mk = (code: string, districtId: string, extra: Record<string, unknown> = {}) =>
       prisma.candidate.create({ data: { sourceConnectionId: sourceId, sourceEmployeeCode: code, fullName: `${TAG} Person ${code}`, districtId, contentHash: "h", lastSyncedAt: new Date(), ...extra } });
@@ -43,7 +43,7 @@ describe.skipIf(!hasDb)("district dashboards", async () => {
   afterAll(async () => {
     await prisma.candidate.deleteMany({ where: { sourceConnectionId: sourceId } });
     await prisma.sourceConnection.delete({ where: { id: sourceId } });
-    await prisma.user.deleteMany({ where: { email: { startsWith: TAG } } });
+    await prisma.user.deleteMany({ where: { username: { startsWith: TAG } } });
     await prisma.district.deleteMany({ where: { name: { startsWith: TAG } } });
   });
 

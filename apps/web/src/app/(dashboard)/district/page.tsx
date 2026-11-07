@@ -125,7 +125,7 @@ export default async function DistrictDashboardPage({ searchParams }: PageProps<
                         <td className="px-4 py-2.5 text-xs">{r.designation?.name ?? "—"}</td>
                         <td className="px-4 py-2.5 text-xs">{r.departmentHead?.name ?? "—"}</td>
                         <td className="px-4 py-2.5"><ReviewStatusBadge status={r.reviewStatus} updated={r.reviewUpdated} pendingConfirmation={r.reviewPendingConfirmation} /></td>
-                        <td className="px-4 py-2.5 text-xs">{last ? (last.reviewedBy.name ?? last.reviewedBy.email) : "—"}</td>
+                        <td className="px-4 py-2.5 text-xs">{last ? (last.reviewedBy.name ?? last.reviewedBy.username) : "—"}</td>
                         <td className="px-4 py-2.5 text-xs">{r.reviewedAt ? formatDateTime(r.reviewedAt) : "—"}</td>
                         <td className="max-w-[16rem] px-4 py-2.5 text-xs">
                           {last?.remark ? <p className="truncate" title={last.remark}>{last.remark}</p> : <span className="text-muted-foreground">—</span>}
@@ -189,7 +189,7 @@ export default async function DistrictDashboardPage({ searchParams }: PageProps<
                     a.kind === "review" ? (
                       <li key={a.r.id} className="py-2">
                         <p>
-                          <span className="font-medium">{a.r.reviewedBy.name ?? a.r.reviewedBy.email}</span> {a.r.isOverride ? "changed" : "marked"}{" "}
+                          <span className="font-medium">{a.r.reviewedBy.name ?? a.r.reviewedBy.username}</span> {a.r.isOverride ? "changed" : "marked"}{" "}
                           <Link href={`/candidates/${a.r.candidate.id}`} className="text-primary hover:underline">{a.r.candidate.fullName}</Link> as{" "}
                           <span className={a.r.decision === "SELECTED" ? "font-semibold text-success" : "font-semibold text-destructive"}>{decisionWord(a.r.decision)}</span>
                           {a.r.requiresConfirmation && !a.r.confirmedAt && <span className="text-brand-orange"> · awaiting confirmation</span>}
@@ -198,7 +198,7 @@ export default async function DistrictDashboardPage({ searchParams }: PageProps<
                       </li>
                     ) : (
                       <li key={a.c.id} className="py-2">
-                        <p><span className="font-medium">{a.c.author.name ?? a.c.author.email}</span> commented on <Link href={`/candidates/${a.c.candidate.id}`} className="text-primary hover:underline">{a.c.candidate.fullName}</Link></p>
+                        <p><span className="font-medium">{a.c.author.name ?? a.c.author.username}</span> commented on <Link href={`/candidates/${a.c.candidate.id}`} className="text-primary hover:underline">{a.c.candidate.fullName}</Link></p>
                         <p className="truncate text-xs text-muted-foreground" title={a.c.body}>{a.c.body}</p>
                         <p className="text-xs text-muted-foreground">{relativeTime(a.c.createdAt)}</p>
                       </li>
@@ -221,7 +221,7 @@ export default async function DistrictDashboardPage({ searchParams }: PageProps<
                 <ul className="divide-y text-sm" role="list">
                   {viewers.map((v) => (
                     <li key={v.id} className="py-2">
-                      <p className="font-medium">{v.name ?? v.email}</p>
+                      <p className="font-medium">{v.name ?? v.username}</p>
                       <p className="text-xs text-muted-foreground">{v.districtAssignments.map((a) => a.district.name).join(", ")} · {v.lastLoginAt ? `signed in ${relativeTime(v.lastLoginAt)}` : "never signed in"}</p>
                     </li>
                   ))}

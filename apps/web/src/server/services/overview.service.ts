@@ -125,7 +125,7 @@ async function reviewTable(user: CurrentUser, scope: Prisma.CandidateWhereInput,
       id: true, fullName: true, sourceEmployeeCode: true, officialEmployeeId: true, reviewStatus: true, reviewUpdated: true, reviewPendingConfirmation: true, reviewedAt: true,
       district: { select: { name: true } },
       designation: { select: { name: true } },
-      reviews: { orderBy: { createdAt: "desc" }, take: 1, select: { reviewedBy: { select: { name: true, email: true } } } },
+      reviews: { orderBy: { createdAt: "desc" }, take: 1, select: { reviewedBy: { select: { name: true, username: true } } } },
     },
   });
   const photos = await profilePhotoUrls(rows.map((r) => r.id), user);

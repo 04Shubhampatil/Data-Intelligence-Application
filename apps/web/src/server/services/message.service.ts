@@ -20,7 +20,7 @@ const PAGE = 20;
 export async function districtRecipients(districtId: string, excludeUserId?: string) {
   return prisma.user.findMany({
     where: { isActive: true, districtAssignments: { some: { districtId } }, ...(excludeUserId ? { id: { not: excludeUserId } } : {}) },
-    select: { id: true, name: true, email: true, role: { select: { name: true } } },
+    select: { id: true, name: true, username: true, role: { select: { name: true } } },
     orderBy: { name: "asc" },
   });
 }
@@ -31,9 +31,9 @@ export async function composeOptions(user: CurrentUser) {
   const districts = await prisma.district.findMany({
     where: isScoped(user) ? { id: { in: user.districtScopeIds } } : { assignments: { some: {} } },
     orderBy: { name: "asc" },
-    select: { id: true, name: true, assignments: { where: { user: { isActive: true, id: { not: user.id } } }, select: { user: { select: { id: true, name: true, email: true, role: { select: { name: true } } } } } } },
+    select: { id: true, name: true, assignments: { where: { user: { isActive: true, id: { not: user.id } } }, select: { user: { select: { id: true, name: true, username: true, role: { select: { name: true } } } } } } },
   });
-  return districts.map((d) => ({ id: d.id, name: d.name, users: d.assignments.map((a) => ({ id: a.user.id, label: a.user.name ?? a.user.email, role: a.user.role.name })) }));
+  return districts.map((d) => ({ id: d.id, name: d.name, users: d.assignments.map((a) => ({ id: a.user.id, label: a.user.name ?? a.user.username, role: a.user.role.name })) }));
 }
 
 /**
@@ -71,7 +71,7 @@ export async function sendMessage(opts: { user: CurrentUser; districtId: string;
   const label = opts.kind === "ANNOUNCEMENT" ? "Announcement" : opts.kind === "REMINDER" ? "Reminder" : "New message";
   await notifyUsers(
     chosen.map((u) => u.id),
-    { type: opts.kind === "MESSAGE" ? "MESSAGE" : opts.kind, title: `${label}: ${subject}`, body: `${user.name ?? user.email} · ${district.name}`, link: `/messages/${message.id}` },
+    { type: opts.kind === "MESSAGE" ? "MESSAGE" : opts.kind, title: `${label}: ${subject}`, body: `${user.name ?? user.username} · ${district.name}`, link: `/messages/${message.id}` },
   );
   await audit("MESSAGE_SEND", { userId: user.id, target: message.id, metadata: { districtId: district.id, kind: opts.kind, recipients: chosen.length } });
   return { ...message, recipients: chosen.length };
@@ -113,7 +113,7 @@ export async function replyMessage(opts: { user: CurrentUser; parentId: string; 
     },
     select: { id: true, createdAt: true },
   });
-  await notifyUsers(audience, { type: "REPLY", title: `Reply: ${parent.subject}`, body: `${user.name ?? user.email} · ${parent.district.name}`, link: `/messages/${parent.id}` });
+  await notifyUsers(audience, { type: "REPLY", title: `Reply: ${parent.subject}`, body: `${user.name ?? user.username} · ${parent.district.name}`, link: `/messages/${parent.id}` });
   await audit("MESSAGE_REPLY", { userId: user.id, target: parent.id, metadata: { replyId: reply.id } });
   return reply;
 }
@@ -137,7 +137,7 @@ export async function listThreads(user: CurrentUser, opts: { districtId?: string
       select: {
         id: true, kind: true, subject: true, body: true, createdAt: true,
         district: { select: { id: true, name: true } },
-        sender: { select: { id: true, name: true, email: true } },
+        sender: { select: { id: true, name: true, username: true } },
         recipients: { select: { userId: true, readAt: true } },
         _count: { select: { replies: true } },
       },
@@ -169,11 +169,11 @@ export async function getThread(threadId: string, user: CurrentUser) {
     select: {
       id: true, kind: true, subject: true, body: true, createdAt: true,
       district: { select: { id: true, name: true } },
-      sender: { select: { id: true, name: true, email: true, role: { select: { name: true } } } },
-      recipients: { select: { userId: true, deliveredAt: true, readAt: true, user: { select: { name: true, email: true, role: { select: { name: true } } } } }, orderBy: { user: { name: "asc" } } },
+      sender: { select: { id: true, name: true, username: true, role: { select: { name: true } } } },
+      recipients: { select: { userId: true, deliveredAt: true, readAt: true, user: { select: { name: true, username: true, role: { select: { name: true } } } } }, orderBy: { user: { name: "asc" } } },
       replies: {
         orderBy: { createdAt: "asc" },
-        select: { id: true, body: true, createdAt: true, sender: { select: { id: true, name: true, email: true, role: { select: { name: true } } } } },
+        select: { id: true, body: true, createdAt: true, sender: { select: { id: true, name: true, username: true, role: { select: { name: true } } } } },
       },
     },
   });

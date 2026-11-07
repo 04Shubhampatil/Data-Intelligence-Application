@@ -30,13 +30,13 @@ describe.skipIf(!hasDb)("district isolation", async () => {
 
   let sourceId = "", dA = "", dB = "", projA = "", projB = "", candA = "", candB = "", candNone = "", scopedUserId = "";
 
-  const scoped = (): CurrentUser => ({ id: scopedUserId, email: `${TAG}@example.test`, name: "Scoped", role: "DISTRICT_VIEWER", permissions: ["candidates:read", "reports:read", "reports:export", "assistant:use", "dashboard:read"], districtScopeIds: [dA] });
+  const scoped = (): CurrentUser => ({ id: scopedUserId, username: `${TAG}@example.test`, name: "Scoped", role: "DISTRICT_VIEWER", permissions: ["candidates:read", "reports:read", "reports:export", "assistant:use", "dashboard:read"], districtScopeIds: [dA] });
   const global = (): CurrentUser => ({ ...scoped(), role: "ADMIN", districtScopeIds: [] });
   const filters = (o: Record<string, string> = {}) => candidateFilterSchema.parse(o);
 
   beforeAll(async () => {
     const role = await prisma.role.findUniqueOrThrow({ where: { name: "DISTRICT_VIEWER" } });
-    scopedUserId = (await prisma.user.create({ data: { email: `${TAG}@example.test`, passwordHash: "x", roleId: role.id } })).id;
+    scopedUserId = (await prisma.user.create({ data: { username: `${TAG}@example.test`, passwordHash: "x", roleId: role.id } })).id;
     sourceId = (await prisma.sourceConnection.create({ data: { name: TAG, adapterKey: "synthetic", baseUrl: "https://example.test" } })).id;
     dA = (await prisma.district.create({ data: { name: `${TAG} ALPHA` } })).id;
     dB = (await prisma.district.create({ data: { name: `${TAG} BETA` } })).id;

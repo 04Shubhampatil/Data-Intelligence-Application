@@ -60,7 +60,7 @@ export async function systemPrompt(user: CurrentUser) {
     "- Tables and cards are shown to the user automatically below your answer, so keep answers short: 1–3 sentences with the key numbers. Do not repeat the whole table in text. Use the user's wording for places.",
     "- When a result is exportable, mention that the Excel download is available below the table.",
     "",
-    `The user is ${user.name ?? user.email} (role ${user.role}).${user.districtScopeIds.length ? " They may only see records from their assigned districts; tools already enforce this." : ""}`,
+    `The user is ${user.name ?? user.username} (role ${user.role}).${user.districtScopeIds.length ? " They may only see records from their assigned districts; tools already enforce this." : ""}`,
     "",
     "KNOWN FILTER VALUES (upper case as stored)",
     `Districts: ${v.districts.join(", ") || "(none synced yet)"}`,

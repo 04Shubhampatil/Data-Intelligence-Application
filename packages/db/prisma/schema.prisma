@@ -16,7 +16,10 @@ datasource db {
 
 model User {
   id             String     @id @default(cuid())
-  email          String     @unique
+  /// Sign-in name (lower case; letters, digits, dot, dash, underscore). Replaced email sign-in on 2026-11-07.
+  username       String     @unique @db.VarChar(191)
+  /// No longer used to sign in or shown in the app; kept for existing records.
+  email          String?    @unique
   name           String?
   passwordHash   String
   isActive       Boolean    @default(true)

@@ -68,7 +68,7 @@ export async function getDistrictViewers(user: CurrentUser) {
       role: { name: "DISTRICT_VIEWER" },
       ...(isScoped(user) ? { districtAssignments: { some: { districtId: { in: user.districtScopeIds } } } } : {}),
     },
-    select: { id: true, name: true, email: true, lastLoginAt: true, districtAssignments: { select: { district: { select: { name: true } } } } },
+    select: { id: true, name: true, username: true, lastLoginAt: true, districtAssignments: { select: { district: { select: { name: true } } } } },
     orderBy: { name: "asc" },
   });
 }
@@ -78,10 +78,10 @@ export async function getReviewerOptions(user: CurrentUser) {
   const rows = await prisma.candidateReview.findMany({
     where: { candidate: { ...candidateScope(user) } },
     distinct: ["reviewedById"],
-    select: { reviewedBy: { select: { id: true, name: true, email: true } } },
+    select: { reviewedBy: { select: { id: true, name: true, username: true } } },
     take: 200,
   });
-  return rows.map((r) => ({ value: r.reviewedBy.id, label: r.reviewedBy.name ?? r.reviewedBy.email })).sort((a, b) => a.label.localeCompare(b.label));
+  return rows.map((r) => ({ value: r.reviewedBy.id, label: r.reviewedBy.name ?? r.reviewedBy.username })).sort((a, b) => a.label.localeCompare(b.label));
 }
 
 const PAGE = 25;
@@ -101,7 +101,7 @@ export async function getReviewTable(f: ReviewTableFilters, user: CurrentUser) {
         district: { select: { name: true } },
         designation: { select: { name: true } },
         departmentHead: { select: { name: true } },
-        reviews: { orderBy: { createdAt: "desc" }, take: 1, select: { id: true, remark: true, decision: true, requiresConfirmation: true, confirmedAt: true, reviewedBy: { select: { name: true, email: true } } } },
+        reviews: { orderBy: { createdAt: "desc" }, take: 1, select: { id: true, remark: true, decision: true, requiresConfirmation: true, confirmedAt: true, reviewedBy: { select: { name: true, username: true } } } },
         _count: { select: { comments: true } },
       },
     }),
@@ -118,13 +118,13 @@ export async function getRecentReviewActivity(user: CurrentUser, take = 10) {
       where: { candidate: scope },
       orderBy: { createdAt: "desc" },
       take,
-      select: { id: true, decision: true, isOverride: true, requiresConfirmation: true, confirmedAt: true, createdAt: true, candidate: { select: { id: true, fullName: true, sourceEmployeeCode: true } }, reviewedBy: { select: { name: true, email: true } } },
+      select: { id: true, decision: true, isOverride: true, requiresConfirmation: true, confirmedAt: true, createdAt: true, candidate: { select: { id: true, fullName: true, sourceEmployeeCode: true } }, reviewedBy: { select: { name: true, username: true } } },
     }),
     prisma.candidateComment.findMany({
       where: { candidate: scope },
       orderBy: { createdAt: "desc" },
       take,
-      select: { id: true, body: true, createdAt: true, candidate: { select: { id: true, fullName: true } }, author: { select: { name: true, email: true } } },
+      select: { id: true, body: true, createdAt: true, candidate: { select: { id: true, fullName: true } }, author: { select: { name: true, username: true } } },
     }),
   ]);
   return [...reviews.map((r) => ({ kind: "review" as const, at: r.createdAt, r })), ...comments.map((c) => ({ kind: "comment" as const, at: c.createdAt, c }))]
@@ -188,7 +188,7 @@ export async function getVerifiedRecords(user: CurrentUser, opts: { page?: numbe
         district: { select: { name: true } },
         designation: { select: { name: true } },
         departmentHead: { select: { name: true } },
-        reviews: { where: { decision: "SELECTED" }, orderBy: { createdAt: "desc" }, take: 1, select: { createdAt: true, reviewedBy: { select: { name: true, email: true } } } },
+        reviews: { where: { decision: "SELECTED" }, orderBy: { createdAt: "desc" }, take: 1, select: { createdAt: true, reviewedBy: { select: { name: true, username: true } } } },
       },
     }),
   ]);
@@ -199,7 +199,7 @@ export async function getVerifiedRecords(user: CurrentUser, opts: { page?: numbe
     rows: rows.map(({ reviews, ...r }) => ({
       ...r,
       photoUrl: photos.get(r.id) ?? null,
-      verifiedBy: reviews[0] ? (reviews[0].reviewedBy.name ?? reviews[0].reviewedBy.email) : null,
+      verifiedBy: reviews[0] ? (reviews[0].reviewedBy.name ?? reviews[0].reviewedBy.username) : null,
       verifiedAt: r.reviewedAt ?? reviews[0]?.createdAt ?? null,
     })),
     page,

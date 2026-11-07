@@ -30,7 +30,7 @@ describe.skipIf(!hasDb)("review API authorization", async () => {
   let sourceId = "", dA = "", dB = "", candA = "", candB = "", candC = "";
   const ids: Record<string, string> = {};
   const as = (role: RoleName, scope: string[] = []): CurrentUser => ({
-    id: ids[role], email: `${TAG}-${role}@example.test`, name: `${TAG} ${role}`, role,
+    id: ids[role], username: `${TAG}-${role}@example.test`, name: `${TAG} ${role}`, role,
     permissions: effectivePermissions(role, [...DEFAULT_ROLE_PERMISSIONS[role]]), districtScopeIds: scope,
   });
   const ctx = (id: string) => ({ params: Promise.resolve({ id }) }) as never;
@@ -40,7 +40,7 @@ describe.skipIf(!hasDb)("review API authorization", async () => {
   beforeAll(async () => {
     for (const role of ["SUPER_ADMIN", "ADMIN", "DISTRICT_ADMIN", "DISTRICT_VIEWER"] as const) {
       const r = await prisma.role.findUniqueOrThrow({ where: { name: role } });
-      ids[role] = (await prisma.user.create({ data: { email: `${TAG.toLowerCase()}-${role.toLowerCase()}@example.test`, name: `${TAG} ${role}`, passwordHash: "x", roleId: r.id } })).id;
+      ids[role] = (await prisma.user.create({ data: { username: `${TAG.toLowerCase()}-${role.toLowerCase()}@example.test`, name: `${TAG} ${role}`, passwordHash: "x", roleId: r.id } })).id;
     }
     sourceId = (await prisma.sourceConnection.create({ data: { name: TAG, adapterKey: "synthetic", baseUrl: "https://example.test" } })).id;
     dA = (await prisma.district.create({ data: { name: `${TAG} A` } })).id;

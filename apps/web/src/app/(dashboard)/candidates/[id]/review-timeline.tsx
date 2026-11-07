@@ -13,10 +13,10 @@ type Review = {
   requiresConfirmation: boolean;
   confirmedAt: Date | null;
   createdAt: Date;
-  reviewedBy: { name: string | null; email: string; role: { name: string } };
-  confirmedBy: { name: string | null; email: string } | null;
+  reviewedBy: { name: string | null; username: string; role: { name: string } };
+  confirmedBy: { name: string | null; username: string } | null;
 };
-type Comment = { id: string; body: string; createdAt: Date; author: { name: string | null; email: string } };
+type Comment = { id: string; body: string; createdAt: Date; author: { name: string | null; username: string } };
 
 /** Append-only history: decisions, confirmations and comments, newest first. */
 export function ReviewTimeline({ reviews, comments }: { reviews: Review[]; comments: Comment[] }) {
@@ -41,7 +41,7 @@ export function ReviewTimeline({ reviews, comments }: { reviews: Review[]; comme
                     {it.r.decision === "SELECTED" ? <CheckCircle2 className="size-3" /> : <XCircle className="size-3" />}
                   </span>
                   <p className="text-sm">
-                    <span className="font-semibold">{it.r.reviewedBy.name ?? it.r.reviewedBy.email}</span>
+                    <span className="font-semibold">{it.r.reviewedBy.name ?? it.r.reviewedBy.username}</span>
                     <span className="text-muted-foreground"> ({roleLabel(it.r.reviewedBy.role.name)}) </span>
                     {it.r.isOverride ? "changed the decision to" : "marked the candidate"} <span className="font-semibold">{it.r.decision.toLowerCase()}</span>
                     {it.r.isOverride && <Badge variant="outline" className="ml-2">override</Badge>}
@@ -51,14 +51,14 @@ export function ReviewTimeline({ reviews, comments }: { reviews: Review[]; comme
                   <p className="mt-1 text-xs text-muted-foreground">
                     {formatDateTime(it.r.createdAt)} · {it.r.previousStatus.replace("_", " ").toLowerCase()} → {it.r.newStatus.toLowerCase()}
                     {it.r.confirmedAt && it.r.confirmedBy && (
-                      <> · <ShieldCheck className="inline size-3" /> confirmed by {it.r.confirmedBy.name ?? it.r.confirmedBy.email} on {formatDateTime(it.r.confirmedAt)}</>
+                      <> · <ShieldCheck className="inline size-3" /> confirmed by {it.r.confirmedBy.name ?? it.r.confirmedBy.username} on {formatDateTime(it.r.confirmedAt)}</>
                     )}
                   </p>
                 </li>
               ) : (
                 <li key={it.c.id} className="relative">
                   <span className="absolute -left-[27px] grid size-4 place-items-center rounded-full bg-brand-navy text-white"><MessageSquare className="size-3" /></span>
-                  <p className="text-sm"><span className="font-semibold">{it.c.author.name ?? it.c.author.email}</span> <span className="text-muted-foreground">commented</span></p>
+                  <p className="text-sm"><span className="font-semibold">{it.c.author.name ?? it.c.author.username}</span> <span className="text-muted-foreground">commented</span></p>
                   <p className="mt-1 whitespace-pre-wrap rounded-lg bg-muted/60 px-3 py-2 text-sm">{it.c.body}</p>
                   <p className="mt-1 text-xs text-muted-foreground">{formatDateTime(it.c.createdAt)}</p>
                 </li>

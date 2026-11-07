@@ -20,7 +20,7 @@ export async function getDashboardData(user: CurrentUser) {
       where: hasPermission(user.permissions, "audit:read") ? {} : { userId: user.id },
       orderBy: { createdAt: "desc" },
       take: 8,
-      select: { id: true, action: true, target: true, createdAt: true, user: { select: { name: true, email: true } } },
+      select: { id: true, action: true, target: true, createdAt: true, user: { select: { name: true, username: true } } },
     }),
     groupCandidates(where, "project", 8),
     groupCandidates(where, "district", 8),

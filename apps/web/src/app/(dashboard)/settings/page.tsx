@@ -39,7 +39,7 @@ export default async function SettingsPage() {
             : { OR: [{ id: user.id }, { role: { name: "DISTRICT_VIEWER" }, districtAssignments: { some: { districtId: { in: user.districtScopeIds } } } }] },
           orderBy: { createdAt: "asc" },
           select: {
-            id: true, name: true, email: true, isActive: true, lastLoginAt: true, lockedUntil: true, role: { select: { name: true } },
+            id: true, name: true, username: true, isActive: true, lastLoginAt: true, lockedUntil: true, role: { select: { name: true } },
             districtAssignments: { select: { district: { select: { id: true, name: true } } } },
           },
         })
@@ -88,7 +88,7 @@ export default async function SettingsPage() {
               assignableRoles={assignableRoles}
               canAssignAnyDistrict={hasPermission(user.permissions, "districts:assign")}
               users={users.map((u) => ({
-                id: u.id, name: u.name, email: u.email, isActive: u.isActive, lastLoginAt: u.lastLoginAt, role: u.role.name, lockedUntil: u.lockedUntil, isLocked: isLockedNow(u.lockedUntil),
+                id: u.id, name: u.name, username: u.username, isActive: u.isActive, lastLoginAt: u.lastLoginAt, role: u.role.name, lockedUntil: u.lockedUntil, isLocked: isLockedNow(u.lockedUntil),
                 districts: u.districtAssignments.map((a) => a.district),
               }))}
             />

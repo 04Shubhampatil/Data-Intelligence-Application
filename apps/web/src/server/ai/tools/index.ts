@@ -258,8 +258,8 @@ const handlers: { [N in ToolName]: Handler<N> } = {
       groups = g.map((x) => ({ label: decisionLabel(x.decision), count: x._count._all }));
     } else if (args.groupBy === "reviewer") {
       const g = await prisma.candidateReview.groupBy({ by: ["reviewedById"], where, _count: { _all: true } });
-      const people = await prisma.user.findMany({ where: { id: { in: g.map((x) => x.reviewedById) } }, select: { id: true, name: true, email: true } });
-      const nameOf = new Map(people.map((p) => [p.id, p.name ?? p.email]));
+      const people = await prisma.user.findMany({ where: { id: { in: g.map((x) => x.reviewedById) } }, select: { id: true, name: true, username: true } });
+      const nameOf = new Map(people.map((p) => [p.id, p.name ?? p.username]));
       groups = g.map((x) => ({ label: nameOf.get(x.reviewedById) ?? "Unknown", count: x._count._all }));
     } else {
       const rows = await prisma.candidateReview.findMany({ where, select: { candidate: { select: { district: { select: { name: true } } } } }, take: 50_000 });
@@ -285,15 +285,15 @@ const handlers: { [N in ToolName]: Handler<N> } = {
           orderBy: { createdAt: "asc" },
           select: {
             decision: true, remark: true, isOverride: true, previousStatus: true, requiresConfirmation: true, confirmedAt: true, createdAt: true,
-            reviewedBy: { select: { name: true, email: true, role: { select: { name: true } } } },
-            confirmedBy: { select: { name: true, email: true } },
+            reviewedBy: { select: { name: true, username: true, role: { select: { name: true } } } },
+            confirmedBy: { select: { name: true, username: true } },
           },
         },
-        comments: { orderBy: { createdAt: "asc" }, take: 20, select: { body: true, createdAt: true, author: { select: { name: true, email: true } } } },
+        comments: { orderBy: { createdAt: "asc" }, take: 20, select: { body: true, createdAt: true, author: { select: { name: true, username: true } } } },
       },
     });
     if (!c) return { forModel: { found: 0 } };
-    const who = (u: { name: string | null; email: string }) => u.name ?? u.email;
+    const who = (u: { name: string | null; username: string }) => u.name ?? u.username;
     const at = (d: Date) => d.toLocaleString("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" });
     const decisions = c.reviews.map((r) => ({
       when: at(r.createdAt),

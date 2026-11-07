@@ -8,6 +8,8 @@ export type AuditAction =
   | "LOGOUT"
   | "PASSWORD_RESET_REQUESTED"
   | "PASSWORD_RESET"
+  | "PASSWORD_CHANGED"
+  | "PASSWORD_CHANGE_FAILED"
   | "SEARCH"
   | "EXPORT"
   | "AI_QUERY"

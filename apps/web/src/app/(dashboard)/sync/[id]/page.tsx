@@ -49,7 +49,7 @@ export default async function SyncJobPage({ params }: PageProps<"/sync/[id]">) {
             <CardDescription>
               {job.sourceConnection.name} · started {formatDateTime(job.startedAt ?? job.createdAt)}
               {job.finishedAt ? ` · finished ${formatDateTime(job.finishedAt)}` : ""}
-              {job.triggeredBy ? ` · by ${job.triggeredBy.name ?? job.triggeredBy.email}` : ""}
+              {job.triggeredBy ? ` · by ${job.triggeredBy.name ?? job.triggeredBy.username}` : ""}
             </CardDescription>
             {opts && (
               <p className="text-xs text-muted-foreground">

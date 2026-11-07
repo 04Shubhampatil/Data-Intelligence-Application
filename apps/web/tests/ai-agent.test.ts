@@ -44,11 +44,11 @@ describe.skipIf(!hasDb)("AI agent (fake model, MySQL)", async () => {
   const TAG = `ZZAI${Date.now()}`;
   let sourceId = "";
   let userId = "";
-  const user = (): CurrentUser => ({ id: userId, email: `${TAG}@example.test`, name: "AI Tester", role: "ADMIN", permissions: ["assistant:use", "candidates:read", "reports:export"], districtScopeIds: [] });
+  const user = (): CurrentUser => ({ id: userId, username: `${TAG}@example.test`, name: "AI Tester", role: "ADMIN", permissions: ["assistant:use", "candidates:read", "reports:export"], districtScopeIds: [] });
 
   beforeAll(async () => {
     const role = await prisma.role.findUniqueOrThrow({ where: { name: "ADMIN" } });
-    userId = (await prisma.user.create({ data: { email: `${TAG}@example.test`, passwordHash: "x", roleId: role.id } })).id;
+    userId = (await prisma.user.create({ data: { username: `${TAG}@example.test`, passwordHash: "x", roleId: role.id } })).id;
     sourceId = (await prisma.sourceConnection.create({ data: { name: TAG, adapterKey: "synthetic", baseUrl: "https://example.test" } })).id;
     const district = await prisma.district.create({ data: { name: `${TAG} DISTRICT` } });
     const project = await prisma.departmentHead.create({ data: { name: `${TAG} PRADHAN MANTRI AWAS YOJANA` } });

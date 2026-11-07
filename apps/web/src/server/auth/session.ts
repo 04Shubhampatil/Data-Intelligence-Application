@@ -8,7 +8,7 @@ import { districtScopeFor, hasPermission } from "@/lib/rbac";
 
 export type CurrentUser = {
   id: string;
-  email: string;
+  username: string;
   name: string | null;
   role: string;
   permissions: Permission[];
@@ -29,7 +29,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
     where: { id },
     select: {
       id: true,
-      email: true,
+      username: true,
       name: true,
       isActive: true,
       role: { select: { name: true, permissions: true } },
@@ -40,7 +40,7 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
 
   return {
     id: user.id,
-    email: user.email,
+    username: user.username,
     name: user.name,
     role: user.role.name,
     // Super Admin-only permissions (decisions, review comments) are removed for every other role here.

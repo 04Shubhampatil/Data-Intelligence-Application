@@ -15,11 +15,11 @@ describe.skipIf(!hasDb)("personal details access", async () => {
   const { DEFAULT_ROLE_PERMISSIONS, PERMISSIONS } = await import("@di/db/permissions");
 
   let sourceId = "", dA = "", dB = "", candA = "", candB = "", userId = "";
-  const user = (perms: string[], scope: string[]): CurrentUser => ({ id: userId, email: `${TAG}@example.test`, name: "T", role: "ADMIN", permissions: perms as CurrentUser["permissions"], districtScopeIds: scope });
+  const user = (perms: string[], scope: string[]): CurrentUser => ({ id: userId, username: `${TAG}@example.test`, name: "T", role: "ADMIN", permissions: perms as CurrentUser["permissions"], districtScopeIds: scope });
 
   beforeAll(async () => {
     const role = await prisma.role.findUniqueOrThrow({ where: { name: "VIEWER" } });
-    userId = (await prisma.user.create({ data: { email: `${TAG.toLowerCase()}@example.test`, passwordHash: "x", roleId: role.id } })).id;
+    userId = (await prisma.user.create({ data: { username: `${TAG.toLowerCase()}@example.test`, passwordHash: "x", roleId: role.id } })).id;
     sourceId = (await prisma.sourceConnection.create({ data: { name: TAG, adapterKey: "synthetic", baseUrl: "https://example.test" } })).id;
     dA = (await prisma.district.create({ data: { name: `${TAG} A` } })).id;
     dB = (await prisma.district.create({ data: { name: `${TAG} B` } })).id;

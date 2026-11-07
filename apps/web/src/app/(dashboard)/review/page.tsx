@@ -167,7 +167,7 @@ export default async function ReviewQueuePage({ searchParams }: PageProps<"/revi
                       <MessageKindBadge kind={m.kind} />
                     </Link>
                     <p className="truncate text-xs text-muted-foreground">{m.body}</p>
-                    <p className="text-xs text-muted-foreground">{m.sender.name ?? m.sender.email} · {relativeTime(m.createdAt)}</p>
+                    <p className="text-xs text-muted-foreground">{m.sender.name ?? m.sender.username} · {relativeTime(m.createdAt)}</p>
                   </li>
                 ))}
               </ul>

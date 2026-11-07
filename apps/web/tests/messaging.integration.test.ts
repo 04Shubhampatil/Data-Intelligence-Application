@@ -20,7 +20,7 @@ describe.skipIf(!hasDb)("district messaging", async () => {
   let dA = "", dB = "", daId = "", dvA1 = "", dvA2 = "", dvB = "", sourceId = "", candA = "";
 
   const mkUser = (id: string, role: keyof typeof DEFAULT_ROLE_PERMISSIONS, districts: string[], extra: Permission[] = []): CurrentUser => ({
-    id, email: `${id}@example.test`, name: `${TAG} ${role} ${id.slice(-4)}`, role,
+    id, username: `${id}@example.test`, name: `${TAG} ${role} ${id.slice(-4)}`, role,
     permissions: [...DEFAULT_ROLE_PERMISSIONS[role], ...extra], districtScopeIds: districts,
   });
   const da = () => mkUser(daId, "DISTRICT_ADMIN", [dA], ["reviews:confirm"]);
@@ -34,7 +34,7 @@ describe.skipIf(!hasDb)("district messaging", async () => {
     dA = (await prisma.district.create({ data: { name: `${TAG} ALPHA` } })).id;
     dB = (await prisma.district.create({ data: { name: `${TAG} BETA` } })).id;
     const user = async (suffix: string, roleName: string, districtId: string) =>
-      (await prisma.user.create({ data: { email: `${TAG.toLowerCase()}-${suffix}@example.test`, name: `${TAG} ${suffix}`, passwordHash: "x", roleId: await role(roleName), districtAssignments: { create: { districtId } } } })).id;
+      (await prisma.user.create({ data: { username: `${TAG.toLowerCase()}-${suffix}@example.test`, name: `${TAG} ${suffix}`, passwordHash: "x", roleId: await role(roleName), districtAssignments: { create: { districtId } } } })).id;
     daId = await user("da", "DISTRICT_ADMIN", dA);
     dvA1 = await user("dva1", "DISTRICT_VIEWER", dA);
     dvA2 = await user("dva2", "DISTRICT_VIEWER", dA);

@@ -7,7 +7,7 @@ import { logoutAction } from "@/app/(auth)/actions";
 import { Brand } from "./brand";
 import { SidebarNav } from "./sidebar-nav";
 
-export type SidebarUser = { name: string | null; email: string };
+export type SidebarUser = { name: string | null; username: string };
 
 /** Decorative waves at the bottom of the navy sidebar (pure decoration, hidden from assistive tech). */
 function Waves() {
@@ -22,7 +22,7 @@ function Waves() {
 
 /** Navy sidebar contents (shared by the desktop rail and the mobile sheet). */
 export function SidebarContent({ items, badges, user, showAssistant, onNavigate }: { items: NavItem[]; badges?: Record<string, number>; user: SidebarUser; showAssistant: boolean; onNavigate?: () => void }) {
-  const display = user.name || user.email;
+  const display = user.name || user.username;
   return (
     <div className="relative flex h-full flex-col overflow-hidden bg-linear-to-b from-[#0c1f4f] via-sidebar to-[#081534] p-4 text-sidebar-foreground">
       <Waves />
@@ -57,7 +57,7 @@ export function SidebarContent({ items, badges, user, showAssistant, onNavigate 
           </Avatar>
           <div className="min-w-0 leading-tight">
             <p className="truncate text-sm font-semibold text-white">{display}</p>
-            {user.name && <p className="truncate text-[11px] text-white/55">{user.email}</p>}
+            {user.name && <p className="truncate text-[11px] text-white/55">{user.username}</p>}
           </div>
         </div>
         <form action={logoutAction} className="mt-3">

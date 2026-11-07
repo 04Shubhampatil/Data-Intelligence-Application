@@ -41,7 +41,7 @@ describe.skipIf(!hasDb)("retention & erasure (MySQL)", async () => {
 
   it("purges read notifications after 90 days and unread ones after a year", async () => {
     const role = await prisma.role.findUniqueOrThrow({ where: { name: "VIEWER" } });
-    const u = await prisma.user.create({ data: { email: `${TAG.toLowerCase()}@example.test`, passwordHash: "x", roleId: role.id } });
+    const u = await prisma.user.create({ data: { username: `${TAG.toLowerCase()}`, email: `${TAG.toLowerCase()}@example.test`, passwordHash: "x", roleId: role.id } });
     try {
       const d = (days: number) => new Date(Date.now() - days * 86_400_000);
       const mk = (createdAt: Date, readAt: Date | null) => prisma.notification.create({ data: { userId: u.id, type: "MESSAGE", title: "t", createdAt, readAt } });

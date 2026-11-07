@@ -15,7 +15,7 @@ export default async function AssistantPage() {
     <>
       <PageHeader title="AI Assistant" description={`Natural-language questions about synced records · ${ai.provider}`} />
       {ai.configured ? (
-        <Chat userName={user.name ?? user.email} />
+        <Chat userName={user.name ?? user.username} />
       ) : (
         <Alert>
           <Bot />

@@ -47,7 +47,7 @@ export default async function MessagesPage({ searchParams }: PageProps<"/message
                     </p>
                     <p className="truncate text-sm text-muted-foreground">{m.body}</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">
-                      {m.sender.name ?? m.sender.email} · {m.district.name} · {formatDateTime(m.createdAt)}
+                      {m.sender.name ?? m.sender.username} · {m.district.name} · {formatDateTime(m.createdAt)}
                     </p>
                   </div>
                   <div className="text-right text-xs text-muted-foreground">

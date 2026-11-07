@@ -1,17 +1,30 @@
 import { describe, expect, it } from "vitest";
-import { loginSchema, passwordPolicy, resetPasswordSchema } from "@/lib/validation/auth";
+import { changePasswordSchema, loginSchema, passwordPolicy, usernameSchema } from "@/lib/validation/auth";
 import { parseCandidateFilters } from "@/lib/validation/candidates";
 
-describe("loginSchema", () => {
-  it("normalises email", () => {
-    const r = loginSchema.parse({ email: "  Admin@Example.COM ", password: "x" });
-    expect(r.email).toBe("admin@example.com");
+describe("loginSchema (username sign-in)", () => {
+  it("trims and lower-cases the username, so sign-in is not case-sensitive", () => {
+    const r = loginSchema.parse({ username: "  SuperAdmin ", password: "x" });
+    expect(r.username).toBe("superadmin");
   });
 
-  it("rejects bad email and empty password", () => {
-    expect(loginSchema.safeParse({ email: "nope", password: "x" }).success).toBe(false);
-    expect(loginSchema.safeParse({ email: "a@b.co", password: "" }).success).toBe(false);
-    expect(loginSchema.safeParse({ email: null, password: null }).success).toBe(false);
+  it("requires a username and a password", () => {
+    expect(loginSchema.safeParse({ username: "", password: "x" }).success).toBe(false);
+    expect(loginSchema.safeParse({ username: "superadmin", password: "" }).success).toBe(false);
+    expect(loginSchema.safeParse({ username: null, password: null }).success).toBe(false);
+  });
+});
+
+describe("usernameSchema (new accounts)", () => {
+  it.each([
+    ["jalgaon.admin", true],
+    ["Buldhana_Viewer-2", true],
+    ["ab", false],
+    ["super admin", false],
+    ["-starts-with-dash", false],
+    ["user@example.com", false],
+  ])("%s → %s", (name, ok) => {
+    expect(usernameSchema.safeParse(name).success).toBe(ok);
   });
 });
 
@@ -26,11 +39,13 @@ describe("password policy", () => {
     expect(passwordPolicy.safeParse(pw).success).toBe(ok);
   });
 
-  it("reset requires matching confirmation and a well-formed token", () => {
-    const token = "a".repeat(43);
-    expect(resetPasswordSchema.safeParse({ token, password: "Str0ngEnoughPass", confirm: "Str0ngEnoughPass" }).success).toBe(true);
-    expect(resetPasswordSchema.safeParse({ token, password: "Str0ngEnoughPass", confirm: "different" }).success).toBe(false);
-    expect(resetPasswordSchema.safeParse({ token: "../../etc", password: "Str0ngEnoughPass", confirm: "Str0ngEnoughPass" }).success).toBe(false);
+  it("change password needs the current one, a matching confirmation, and a different new password", () => {
+    const ok = { current: "Old-Passw0rd-1", password: "Str0ngEnoughPass", confirm: "Str0ngEnoughPass" };
+    expect(changePasswordSchema.safeParse(ok).success).toBe(true);
+    expect(changePasswordSchema.safeParse({ ...ok, confirm: "different" }).success).toBe(false);
+    expect(changePasswordSchema.safeParse({ ...ok, current: "" }).success).toBe(false);
+    expect(changePasswordSchema.safeParse({ ...ok, current: "Str0ngEnoughPass" }).success).toBe(false);
+    expect(changePasswordSchema.safeParse({ ...ok, password: "weak", confirm: "weak" }).success).toBe(false);
   });
 });
 

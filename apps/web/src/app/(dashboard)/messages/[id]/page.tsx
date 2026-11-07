@@ -48,12 +48,12 @@ export default async function MessageThreadPage({ params }: PageProps<"/messages
         <Card>
           <CardHeader>
             <CardTitle className="flex flex-wrap items-center gap-2">{t.subject} <MessageKindBadge kind={t.kind} /></CardTitle>
-            <CardDescription>{t.district.name} · started by {t.sender.name ?? t.sender.email} on {formatDateTime(t.createdAt)}</CardDescription>
+            <CardDescription>{t.district.name} · started by {t.sender.name ?? t.sender.username} on {formatDateTime(t.createdAt)}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Bubble name={t.sender.name ?? t.sender.email} role={t.sender.role.name} at={t.createdAt} body={t.body} mine={t.sender.id === user.id} />
+            <Bubble name={t.sender.name ?? t.sender.username} role={t.sender.role.name} at={t.createdAt} body={t.body} mine={t.sender.id === user.id} />
             {t.replies.map((r) => (
-              <Bubble key={r.id} name={r.sender.name ?? r.sender.email} role={r.sender.role.name} at={r.createdAt} body={r.body} mine={r.sender.id === user.id} />
+              <Bubble key={r.id} name={r.sender.name ?? r.sender.username} role={r.sender.role.name} at={r.createdAt} body={r.body} mine={r.sender.id === user.id} />
             ))}
             {canReply ? (
               <div className="border-t pt-4"><ReplyForm parentId={t.id} /></div>
@@ -72,7 +72,7 @@ export default async function MessageThreadPage({ params }: PageProps<"/messages
               {t.recipients.map((r) => (
                 <li key={r.userId} className="flex items-center justify-between gap-2 py-2">
                   <div className="min-w-0">
-                    <p className="truncate font-medium">{r.user.name ?? r.user.email}</p>
+                    <p className="truncate font-medium">{r.user.name ?? r.user.username}</p>
                     <p className="text-xs text-muted-foreground">{roleLabel(r.user.role.name)}</p>
                   </div>
                   {r.readAt ? (

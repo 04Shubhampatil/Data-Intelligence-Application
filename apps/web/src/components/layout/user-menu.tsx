@@ -1,6 +1,7 @@
 "use client";
 
-import { ChevronDown, LogOut, ShieldCheck } from "lucide-react";
+import Link from "next/link";
+import { ChevronDown, KeyRound, LogOut, ShieldCheck } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -13,8 +14,8 @@ import {
 import { logoutAction } from "@/app/(auth)/actions";
 import { initials, roleLabel } from "@/lib/format";
 
-export function UserMenu({ name, email, role }: { name: string | null; email: string; role: string }) {
-  const display = name || email;
+export function UserMenu({ name, username, role }: { name: string | null; username: string; role: string }) {
+  const display = name || username;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="flex items-center gap-2.5 rounded-full py-1 pl-1 pr-2 text-left outline-none transition-colors hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50">
@@ -30,11 +31,16 @@ export function UserMenu({ name, email, role }: { name: string | null; email: st
       <DropdownMenuContent align="end" className="w-60">
         <DropdownMenuLabel className="font-normal">
           <p className="truncate text-sm font-medium">{display}</p>
-          <p className="truncate text-xs text-muted-foreground">{email}</p>
+          <p className="truncate text-xs text-muted-foreground">{username}</p>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem disabled>
           <ShieldCheck /> {roleLabel(role)}
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <Link href="/account/password">
+            <KeyRound /> Change password
+          </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <form action={logoutAction}>

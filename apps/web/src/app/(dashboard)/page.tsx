@@ -97,7 +97,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
   const months = o.monthly.map((m) => m.month);
   const total = o.stats.total.value;
   const today = new Date().toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", weekday: "long", day: "numeric", month: "long", year: "numeric" });
-  const displayName = user.name ?? user.email.split("@")[0];
+  const displayName = user.name ?? user.username;
 
   const quick = [
     hasPermission(user.permissions, "sync:run") && { href: "/sync", label: "Sync Data", icon: RefreshCw },
@@ -219,7 +219,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/">) {
                         <td className="px-3 py-3 text-xs">{r.district?.name ?? "—"}</td>
                         <td className="max-w-44 px-3 py-3 text-xs">{r.designation?.name ?? "—"}</td>
                         <td className="px-3 py-3"><ReviewStatusBadge status={r.reviewStatus} updated={r.reviewUpdated} pendingConfirmation={r.reviewPendingConfirmation} /></td>
-                        <td className="px-3 py-3 text-xs">{r.reviewStatus === "PENDING_REVIEW" || !by ? "—" : (by.name ?? by.email)}</td>
+                        <td className="px-3 py-3 text-xs">{r.reviewStatus === "PENDING_REVIEW" || !by ? "—" : (by.name ?? by.username)}</td>
                         <td className="px-3 py-3 text-xs text-muted-foreground">{r.reviewedAt ? formatDateTime(r.reviewedAt) : "—"}</td>
                         <td className="px-5 py-3 text-right">
                           <Button size="sm" variant="secondary" asChild><Link href={`/candidates/${r.id}`}>View</Link></Button>

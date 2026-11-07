@@ -2,7 +2,7 @@ import type { NextAuthConfig } from "next-auth";
 import type { Permission } from "@di/db/permissions";
 import { BASE_PATH, stripBase, withBase } from "./lib/base-path";
 
-const PUBLIC_PATHS = ["/login", "/forgot-password", "/reset-password"];
+const PUBLIC_PATHS = ["/login"];
 
 export function isPublicPath(pathname: string) {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));

@@ -113,7 +113,7 @@ export async function decideCandidate(opts: { candidateId: string; decision: Rev
   });
 
   // Bell notifications (never block the decision).
-  const who = user.name ?? user.email;
+  const who = user.name ?? user.username;
   const link = `/candidates/${c.id}`;
   if (requiresConfirmation) {
     await notifyUsers(await districtAdminIds(c.districtId), { type: "REVIEW_AWAITING", title: `Decision awaiting confirmation: ${c.sourceEmployeeCode}`, body: `${who} marked the candidate as ${decisionWord(opts.decision)}.`, link });
@@ -142,7 +142,7 @@ export async function confirmReview(reviewId: string, user: CurrentUser) {
     prisma.candidate.update({ where: { id: r.candidateId }, data: { reviewPendingConfirmation: false } }),
   ]);
   await audit("REVIEW_CONFIRM", { userId: user.id, target: r.candidateId, metadata: { reviewId: r.id, decision: r.decision } });
-  await notifyUsers([r.reviewedById], { type: "REVIEW_CONFIRMED", title: `Decision confirmed: ${r.candidate.sourceEmployeeCode}`, body: `${user.name ?? user.email} confirmed your ${decisionWord(r.decision)} decision.`, link: `/candidates/${r.candidateId}` });
+  await notifyUsers([r.reviewedById], { type: "REVIEW_CONFIRMED", title: `Decision confirmed: ${r.candidate.sourceEmployeeCode}`, body: `${user.name ?? user.username} confirmed your ${decisionWord(r.decision)} decision.`, link: `/candidates/${r.candidateId}` });
 }
 
 export async function addComment(opts: { candidateId: string; body: string; user: CurrentUser }) {
@@ -166,9 +166,9 @@ export async function getReviewTimeline(candidateId: string, user: CurrentUser) 
     prisma.candidateReview.findMany({
       where: { candidateId },
       orderBy: { createdAt: "desc" },
-      include: { reviewedBy: { select: { name: true, email: true, role: { select: { name: true } } } }, confirmedBy: { select: { name: true, email: true } } },
+      include: { reviewedBy: { select: { name: true, username: true, role: { select: { name: true } } } }, confirmedBy: { select: { name: true, username: true } } },
     }),
-    prisma.candidateComment.findMany({ where: { candidateId }, orderBy: { createdAt: "desc" }, include: { author: { select: { name: true, email: true } } } }),
+    prisma.candidateComment.findMany({ where: { candidateId }, orderBy: { createdAt: "desc" }, include: { author: { select: { name: true, username: true } } } }),
   ]);
   return { reviews, comments };
 }

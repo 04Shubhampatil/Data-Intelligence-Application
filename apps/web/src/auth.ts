@@ -12,7 +12,7 @@ import { audit } from "./server/security/audit";
 const MAX_FAILED_LOGINS = 5;
 const LOCK_MINUTES = 15;
 
-// Compared against when the email is unknown, so response time doesn't reveal which accounts exist.
+// Compared against when the username is unknown, so response time doesn't reveal which accounts exist.
 let dummyHash: Promise<string> | undefined;
 const getDummyHash = () => (dummyHash ??= bcrypt.hash("timing-equalizer", 12));
 
@@ -32,19 +32,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   providers: [
     Credentials({
-      credentials: { email: {}, password: {} },
+      credentials: { username: {}, password: {} },
       async authorize(raw) {
         const parsed = loginSchema.safeParse(raw);
         if (!parsed.success) return null;
-        const { email, password } = parsed.data;
+        const { username, password } = parsed.data;
         const ip = await clientIp();
 
         // 10 attempts / 15 min per IP, 5 / 15 min per account.
-        if (!rateLimit(`login:ip:${ip}`, 10, 15 * 60_000).ok || !rateLimit(`login:acct:${email}`, 5, 15 * 60_000).ok) {
+        if (!rateLimit(`login:ip:${ip}`, 10, 15 * 60_000).ok || !rateLimit(`login:acct:${username}`, 5, 15 * 60_000).ok) {
           throw new RateLimitedError();
         }
 
-        const user = await prisma.user.findUnique({ where: { email }, include: { role: true } });
+        const user = await prisma.user.findUnique({ where: { username }, include: { role: true } });
 
         if (!user || !user.isActive) {
           await bcrypt.compare(password, await getDummyHash());
@@ -80,8 +80,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         return {
           id: user.id,
-          email: user.email,
-          name: user.name,
+          email: user.username, // Auth.js's user shape has no username field; the session reads the real user from the DB
+          name: user.name ?? user.username,
           role: user.role.name,
           permissions: effectivePermissions(user.role.name, parsePermissions(user.role.permissions)),
         };

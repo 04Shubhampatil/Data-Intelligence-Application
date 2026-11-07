@@ -11,7 +11,7 @@ describe.skipIf(!hasDb)("report service (MySQL)", async () => {
   const TAG = `ZZREP${Date.now()}`;
   let sourceId = "";
   let dA = "", dB = "";
-  const user = (scope: string[] = []): CurrentUser => ({ id: "u", email: "r@example.test", name: "R", role: "VIEWER", permissions: ["reports:read"], districtScopeIds: scope });
+  const user = (scope: string[] = []): CurrentUser => ({ id: "u", username: "r@example.test", name: "R", role: "VIEWER", permissions: ["reports:read"], districtScopeIds: scope });
 
   beforeAll(async () => {
     sourceId = (await prisma.sourceConnection.create({ data: { name: TAG, adapterKey: "synthetic", baseUrl: "https://example.test" } })).id;

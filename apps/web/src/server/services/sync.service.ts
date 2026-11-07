@@ -48,7 +48,7 @@ export async function getJob(id: string) {
     where: { id },
     include: {
       sourceConnection: { select: { id: true, name: true } },
-      triggeredBy: { select: { name: true, email: true } },
+      triggeredBy: { select: { name: true, username: true } },
       errors: { orderBy: { createdAt: "desc" }, take: 200 },
     },
   });
@@ -67,7 +67,7 @@ export async function getRecentJobs(take = 20) {
 export async function listSchedules() {
   return prisma.syncSchedule.findMany({
     orderBy: [{ enabled: "desc" }, { nextRunAt: "asc" }],
-    include: { sourceConnection: { select: { name: true } }, createdBy: { select: { name: true, email: true } } },
+    include: { sourceConnection: { select: { name: true } }, createdBy: { select: { name: true, username: true } } },
   });
 }
 

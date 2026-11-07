@@ -31,7 +31,7 @@ export async function GET(request: Request) {
   ]);
 
   const title = `${REPORT_KINDS[kind].label} report`;
-  const file = await buildCandidatesWorkbook({ title, filters: names, rows: rows.map(projectRow), groups, generatedBy: user.name ?? user.email });
+  const file = await buildCandidatesWorkbook({ title, filters: names, rows: rows.map(projectRow), groups, generatedBy: user.name ?? user.username });
 
   const run = await prisma.reportRun.create({ data: { userId: user.id, kind, filters, rowCount: rows.length, groups: groups.length } });
   await audit("EXPORT", { userId: user.id, target: run.id, metadata: { kind, rows: rows.length } });

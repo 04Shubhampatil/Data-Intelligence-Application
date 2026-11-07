@@ -35,12 +35,12 @@ describe.skipIf(!hasDb)("full profile access", async () => {
   const storage = new LocalFileStorage();
   const PDF = new TextEncoder().encode("%PDF-1.4 synthetic PAN card");
   const as = (role: RoleName, scope: string[] = [], extra: Permission[] = []): CurrentUser => ({
-    id: userId, email: `${TAG}@example.test`, name: "T", role, permissions: effectivePermissions(role, [...DEFAULT_ROLE_PERMISSIONS[role], ...extra]), districtScopeIds: scope,
+    id: userId, username: `${TAG}@example.test`, name: "T", role, permissions: effectivePermissions(role, [...DEFAULT_ROLE_PERMISSIONS[role], ...extra]), districtScopeIds: scope,
   });
 
   beforeAll(async () => {
     const role = await prisma.role.findUniqueOrThrow({ where: { name: "VIEWER" } });
-    userId = (await prisma.user.create({ data: { email: `${TAG.toLowerCase()}@example.test`, passwordHash: "x", roleId: role.id } })).id;
+    userId = (await prisma.user.create({ data: { username: `${TAG.toLowerCase()}@example.test`, passwordHash: "x", roleId: role.id } })).id;
     sourceId = (await prisma.sourceConnection.create({ data: { name: TAG, adapterKey: "synthetic", baseUrl: "https://example.test" } })).id;
     dA = (await prisma.district.create({ data: { name: `${TAG} A` } })).id;
     dB = (await prisma.district.create({ data: { name: `${TAG} B` } })).id;

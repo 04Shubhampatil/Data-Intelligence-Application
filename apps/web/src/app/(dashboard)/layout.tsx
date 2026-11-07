@@ -17,7 +17,7 @@ export default async function DashboardLayout({ children }: LayoutProps<"/">) {
     hasPermission(user.permissions, "messages:read") ? unreadMessageCount(user) : Promise.resolve(0),
   ]);
   const badges = { "/messages": unreadMessages };
-  const sidebarUser = { name: user.name, email: user.email };
+  const sidebarUser = { name: user.name, username: user.username };
   const showAssistant = hasPermission(user.permissions, "assistant:use");
 
   return (
@@ -35,7 +35,7 @@ export default async function DashboardLayout({ children }: LayoutProps<"/">) {
           {hasPermission(user.permissions, "candidates:read") && <GlobalSearch />}
           <div className="ml-auto flex items-center gap-3">
             <NotificationsBell initialUnread={unread} />
-            <UserMenu name={user.name} email={user.email} role={user.role} />
+            <UserMenu name={user.name} username={user.username} role={user.role} />
           </div>
         </header>
         <main className="flex-1 p-4 sm:p-6 lg:p-8">{children}</main>
