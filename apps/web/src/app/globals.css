@@ -153,3 +153,11 @@
     @apply font-sans;
   }
 }
+/* Thin bar at the top of the screen while a page loads (app/(dashboard)/loading.tsx). */
+@keyframes loading-bar {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  [class*="animate-[loading-bar"] { animation: none; }
+}
