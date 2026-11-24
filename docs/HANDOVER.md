@@ -56,6 +56,15 @@ powershell -ExecutionPolicy Bypass -File scripts\deploy-worker-resourcedata.ps1
 The website script builds, uploads, restarts and rolls back by itself if the health check fails. The worker script
 reinstalls and restarts the worker; a running sync pauses at its checkpoint and resumes.
 
+Forgotten Super Admin password (nobody can sign in to reset it in Settings): from a PC with this repository and the
+deploy SSH key, run the command below and type the new password twice (hidden). It clears a sign-in lockout,
+re-enables the account and writes an audit entry. `-Username <name>` resets another user; `-Local` resets the local
+database instead of the live one.
+
+```bash
+powershell -ExecutionPolicy Bypass -File scripts\reset-superadmin-password.ps1
+```
+
 Database changes: new Prisma migrations must be applied to the live database before deploying the website. The live
 MySQL is case-sensitive about table names — write migrations with the schema's names (`User`, `Candidate`, …).
 
